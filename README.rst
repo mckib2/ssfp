@@ -8,6 +8,7 @@ wonderful pulse sequence.
 In this package:
 
 - bSSFP: `bssfp()`
+- GS solution: `gs_recon()`
 
 Installation
 ============
@@ -43,6 +44,15 @@ the field map will be provided given the Freeman-Hill convention.
     # function arguments
     sig = bssfp(T1, T2, TR, alpha)
 
+We can also easily get the Geometric Solution to the elliptical
+signal model as described in [1]_ as follows:
+
+.. code-block:: python
+
+    from ssfp import gs_recon
+    recon = gs_recon(phased_cycled_images, pc_axis=-1)
+
+    # Notice that we can specify the axis where the phase-cycles live
 
 References
 ==========
