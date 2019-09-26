@@ -6,6 +6,7 @@ provide a simple to use, pip-installable solution for simulating this
 wonderful pulse sequence.
 
 In this package:
+
 - bSSFP: `bssfp()`
 
 Installation
