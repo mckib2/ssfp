@@ -25,7 +25,7 @@ See `ssfp.examples` for typical usage.  You can run examples like:
 
 .. code-block:: bash
 
-    python -m ssfp.examples.basic
+    python -m ssfp.examples.basic_bssfp
 
 Balanced steady-state free precession can be called through `bssfp()`.
 This is an implementation of equations [1--2] in [1]_.  These
