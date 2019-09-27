@@ -54,6 +54,18 @@ signal model as described in [1]_ as follows:
 
     # Notice that we can specify the axis where the phase-cycles live
 
+PLANET [4]_ is a method for simultaneous T1, T2 fitting for bSSFP
+phase-cycled data.  Call like this:
+
+.. code-block:: python
+
+    from ssfp import planet
+
+    # For a single pixel:
+    Meff, T1, T2 = planet(
+        phased_cycled_pixels, alpha, TR, T1_guess,
+        pcs=np.deg2rad([0, 90, 180, 270, etc...]))
+
 References
 ==========
 .. [1] Xiang, Qing‐San, and Michael N. Hoff. "Banding artifact
