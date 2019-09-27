@@ -77,3 +77,7 @@ References
        Review of Scientific Instruments 37.1 (1966): 93-102.
 .. [3] Freeman R, Hill H. Phase and intensity anomalies in
        fourier transform NMR. J Magn Reson 1971;4:366–383.
+.. [4] Shcherbakova, Yulia, et al. "PLANET: an ellipse fitting
+       approach for simultaneous T1 and T2 mapping using
+       phase‐cycled balanced steady‐state free precession."
+       Magnetic resonance in medicine 79.2 (2018): 711-722.
