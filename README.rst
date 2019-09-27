@@ -9,6 +9,7 @@ In this package:
 
 - bSSFP: `bssfp()`
 - GS solution: `gs_recon()`
+- PLANET: `planet()`
 
 Installation
 ============
