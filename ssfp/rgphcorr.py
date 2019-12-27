@@ -24,31 +24,31 @@ def scatterangle(xi, yi):
 	point to the line.
     '''
 
-    sxx = np.sum(xi.flatten()*xi.flatten())
-    syy = np.sum(yi.flatten()*yi.flatten())
-    sxy = np.sum(xi.flatten()*yi.flatten())
+    sxx = np.sum(xi.flatten()**2)
+    syy = np.sum(yi.flatten()**2)
+    sxy = np.sum((xi*yi).flatten())
 
-    #	The equation that minimizes the sum of squared distances
-    #	is 0.5*tan(2*theta) = sxy / (sxx-syy).
+    # The equation that minimizes the sum of squared distances
+    # is 0.5*tan(2*theta) = sxy / (sxx-syy).
     #
-    #	There is some ambiguity, since the theta that MAXIMIZES
-    #	the sum of squared distances is also a solution.
+    # There is some ambiguity, since the theta that MAXIMIZES
+    # the sum of squared distances is also a solution.
     #
-    #	However, since atan2(y,x) wraps only every 2*pi, this means
-    #	that theta is uniquely determined within a range of pi.
-    #	The solution with atan2(-y,-x) would give the theta that
-    #	maximizes the sum of squared distances.
+    # However, since atan2(y,x) wraps only every 2*pi, this means
+    # that theta is uniquely determined within a range of pi.
+    # The solution with atan2(-y,-x) would give the theta that
+    # maximizes the sum of squared distances.
 
     return 0.5*np.arctan2(2*sxy, sxx - syy)
 
-def rgphcorr(im, cellsize):
-    '''Region-growing phase correction to the given complex image data
+def rgphcorr(im, cellsize=(4, 4, 4)):
+    '''Region-growing phase correction for complex image data.
 
     Parameters
     ----------
     im : array_like
-        array of complex pixel values.
-    cellsize : list
+        Array of complex pixel values from an SSFP acquisition.
+    cellsize : list_like
         Size of cubic region cells.
 
     Returns
@@ -66,12 +66,20 @@ def rgphcorr(im, cellsize):
     pixel, regions are added, and the slowly-varying phase
     is removed on a cell-by-cell basis.
 
+    Implements the algorithm described in [1]_.
+
     References
     ----------
+    .. [1] Hargreaves, Brian A., et al. "Fat‐suppressed steady‐state
+           free precession imaging using phase detection." Magnetic
+           Resonance in Medicine: An Official Journal of the
+           International Society for Magnetic Resonance in Medicine
+           50.1 (2003): 210-213.
     '''
 
+    assert im.ndim == 3, 'im should be a 3-dimensional array!'
     assert len(cellsize) == 3, (
-        'cellsize should be a list with 3 entries!')
+        'cellsize should be a tuple with 3 entries!')
     logging.debug('cellsize is %s', cellsize)
     cellsize = np.array(cellsize)
 
@@ -97,16 +105,23 @@ def rgphcorr(im, cellsize):
         if ncells[k] < 3:
             ncells[k] = 3
 
-    if np.allclose(ncells*cellsize, szim): # Pad the image.
-        # a = 1 # Do nothing (Note that == checks all 3 dimensions).
-        pass
-    else:
+    # Pad the image if needed
+    did_pad = False
+    if not np.allclose(ncells*cellsize, szim):
+        maxvox = ncells*cellsize
         logging.info(
             'Padding the image to <%d, %d, %d>',
-            ncells[0]*cellsize, ncells[1]*cellsize,
-            ncells[2]*cellsize)
-        maxvox = ncells*cellsize
-        im[maxvox[0], maxvox[1], maxvox[2]] = 0
+            maxvox[0], maxvox[1], maxvox[2])
+
+        # Do the actual padding
+        px, py, pz = [x - y for x, y in zip(maxvox, im.shape)]
+        adjx, adjy, adjz = np.mod([px, py, pz], 2)
+        px2, py2, pz2 = int(px/2), int(py/2), int(pz/2)
+        im = np.pad(
+            im,
+            ((px2+adjx, px2), (py2+adjy, py2), (pz2+adjz, pz2)),
+            mode='constant')
+        did_pad = True
 
     # ======= Output Variables =======
 
@@ -250,8 +265,6 @@ def rgphcorr(im, cellsize):
 
         cellnum = cellorder[k]
         cellnum_idx = np.unravel_index(cellnum, ncells, order='F')
-        # print(cellstartX[xmap[cellnum_idx]-1] + celloffsetX)
-        # assert False
 
     	# ===== Extract Data Points from im.
         X, Y, Z = np.meshgrid(
@@ -372,5 +385,12 @@ def rgphcorr(im, cellsize):
         pcim[X, Y, Z] = pf*celldata
 
     # End of main loop.
+
+    # Remove padding if we added it:
+    if did_pad:
+        nx, ny, nz = pcim.shape[:]
+        pcim = pcim[px2+adjx:nx-px2, py2+adjy:ny-py2, pz2+adjz:nz-pz2]
+        cellangle = cellangle[
+            px2+adjx:nx-px2, py2+adjy:ny-py2, pz2+adjz:nz-pz2]
 
     return(pcim, cellangle)
