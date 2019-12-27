@@ -3,7 +3,7 @@
 import logging
 
 import numpy as np
-
+from tqdm import trange
 
 def scatterangle(xi, yi):
     '''
@@ -80,18 +80,19 @@ def rgphcorr(im, cellsize):
 
     # TODO: select pixel in fat
     # print('Center Cursor in Fat (i.e. Bone) and right-click')
-    # cntr, imlow, imhigh = disp3dmp(im) # Get center from disp3d program.
+    # cntr, imlow, imhigh = disp3dmp(im) # Get center from disp3d.
     #cntr = round(szim/2); % Just start in image center.
     cntr = np.round(szim/2)
 
-    ccell = np.floor(cntr/cellsize) # Central cell, in cell coordinates.
-    print(ccell)
-    ccellbig = np.ones((27, 1))*ccell[None, :] # Duplicate array, for offset calcs.
+    # Central cell, in cell coordinates.
+    ccell = np.floor(cntr/cellsize + 1)
+
+    # Duplicate array, for offset calcs.
+    ccellbig = np.ones((27, 1))*ccell[None, :]
 
     # ======= Make padded array with integer # of cells =======
 
     ncells = np.ceil(szim/cellsize).astype(int)
-    print(ncells)
     for k in range(3): # If 2x2x2, neighbour checks fail.
         if ncells[k] < 3:
             ncells[k] = 3
@@ -100,16 +101,19 @@ def rgphcorr(im, cellsize):
         # a = 1 # Do nothing (Note that == checks all 3 dimensions).
         pass
     else:
-        print('Padding the image to <%d, %d, %d>' % [c*cellsize for c in ncells])
+        logging.info(
+            'Padding the image to <%d, %d, %d>',
+            ncells[0]*cellsize, ncells[1]*cellsize,
+            ncells[2]*cellsize)
         maxvox = ncells*cellsize
         im[maxvox[0], maxvox[1], maxvox[2]] = 0
 
-
     # ======= Output Variables =======
 
-    pcim = -.0001*np.ones(im.shape, dtype=im.dtype) # Allocate phase-corrected image.
+    # Allocate phase-corrected image.
+    pcim = -.0001*np.ones(im.shape, dtype=im.dtype)
 
-     # Angles ultimately removed in correction:
+    # Angles ultimately removed in correction:
     cellangle = np.zeros(ncells)
 
     # Weights for each cell, calculated as sum of mags of dot
@@ -122,26 +126,27 @@ def rgphcorr(im, cellsize):
     # the x, y and z locations of each block. When cells are reordered
     # based on distance from center, these maps will be used to get
     # the cell coordinates where the calculated angle is to be placed.
-    #
-    xmap = np.zeros(ncells, dtype=int) # X-locations of cells, in cell coords
-    ymap = np.zeros(ncells, dtype=int) # Y-locations of cells, in cell coords
-    zmap = np.zeros(ncells, dtype=int) # Z-locations of cells, in cell coords
+
+    # locations of cells, in cell coords
+    xmap = np.zeros(ncells, dtype=int)
+    ymap = np.zeros(ncells, dtype=int)
+    zmap = np.zeros(ncells, dtype=int)
 
     # X locations.
     # m1 = [1:ncells(1)]'*ones(1,ncells(2));
-    m1 = np.arange(ncells[0])[:, None] @ np.ones((1, ncells[1]))
+    m1 = np.arange(1, ncells[0]+1)[:, None] @ np.ones((1, ncells[1]))
     for k in range(ncells[2]):
         xmap[..., k] = m1
 
     # Y locations.
     # m1 = ones(ncells(1),1)*[1:ncells(2)];
-    m1 = np.ones((ncells[0], 1)) @ np.arange(ncells[1])[None, :]
+    m1 = np.ones((ncells[0], 1)) @ np.arange(1, ncells[1]+1)[None, :]
     for k in range(ncells[2]):
         ymap[..., k] = m1
 
    # Z locations.
     # m1 = ones(ncells(2),1)*[1:ncells(3)];
-    m1 = np.ones((ncells[1], 1)) @ np.arange(ncells[2])[None, :]
+    m1 = np.ones((ncells[1], 1)) @ np.arange(1, ncells[2]+1)[None, :]
     for k in range(ncells[0]):
         zmap[k, ...] = m1
 
@@ -166,24 +171,29 @@ def rgphcorr(im, cellsize):
     #	cells have already been calculated.
     #
 
-    # cells = [xmap(:) ymap(:) zmap(:)] # Make list of coordinates.
+    # Make list of coordinates. Use Fortran ordering to match MATLAB
+    # concatenation result
     cells = np.concatenate((
-        xmap.flatten()[:, None],
-        ymap.flatten()[:, None],
-        zmap.flatten()[:, None]), axis=1)
-    # ccelle = ones(prod(ncells),1)*ccell
+        xmap.flatten('F')[:, None],
+        ymap.flatten('F')[:, None],
+        zmap.flatten('F')[:, None]), axis=1)
     ccelle = np.ones((np.prod(ncells), 1)) @ ccell[None, :]
-    celldelta = cells - ccelle # Delta, in cell coords, from center to cell.
-    celld = np.sqrt(np.sum(celldelta*celldelta, axis=-1)) # Euclidean distance.
 
-    # [orddists,cellorder] = sort(celld) # Order distances from center.
-    # orddists = np.sort(celld)
-    cellorder = np.argsort(celld)
+    # Delta, in cell coords, from center to cell.
+    celldelta = cells - ccelle
 
+    # Euclidean distance.
+    celld = np.sqrt(np.sum(celldelta*celldelta, axis=-1))
 
-    # ======= Do phase fit and correction for cells in order. ================
+    # Order distances from center, use mergesort to match MATLAB's
+    # stable quicksort, see https://stackoverflow.com/questions/
+    # 39484073/matlab-sort-vs-numpy-argsort-how-to-match-results
+    cellorder = np.argsort(celld, kind='mergesort')
 
-    celldata = np.zeros(cellsize.shape) # Allocate "working cell"
+    # ======= Do phase fit and correction for cells in order. ========
+
+    # Allocate "working cell"
+    celldata = np.zeros(cellsize.shape, dtype=im.dtype)
 
     # Arrays of indices of starting corner for cell data in im.
     # cellstartX = ([1:ncells(1)]-1)*cellsize(1)
@@ -193,136 +203,138 @@ def rgphcorr(im, cellsize):
     cellstartY = np.arange(ncells[1])*cellsize[1]
     cellstartZ = np.arange(ncells[2])*cellsize[2]
 
-    celloffsetX = np.arange(cellsize[0]) # Offsets for cells.
-    celloffsetY = np.arange(cellsize[1]) # Offsets for cells.
-    celloffsetZ = np.arange(cellsize[2]) # Offsets for cells.
+    # Offsets for cells. (+1 to match MATLAB indexing)
+    celloffsetX = np.arange(cellsize[0]) + 1
+    celloffsetY = np.arange(cellsize[1]) + 1
+    celloffsetZ = np.arange(cellsize[2]) + 1
 
     # ====== Main Loop Initialization ========
 
     # Offsets to neighbours.
-    nbr_offsts = np.array([
-        [1, 1, 1],
-        [2, 1, 1],
-        [3, 1, 1],
-        [1, 2, 1],
-        [2, 2, 1],
-        [3, 2, 1],
-    	[1, 3, 1],
-        [2, 3, 1],
-        [3, 3, 1],
-        [1, 1, 2],
-        [2, 1, 2],
-        [3, 1, 2],
-        [1, 2, 2],
-        [3, 2, 2],
-        [1, 3, 2],
-        [2, 3, 2],
-        [3, 3, 2],
-        [1, 1, 3],
-        [2, 1, 3],
-        [3, 1, 3],
-        [1, 2, 3],
-        [2, 2, 3],
-        [3, 2, 3],
-        [1, 3, 3],
-        [2, 3, 3],
-        [3, 3, 3],
-    ])
+    nbr_offsts = np.array(
+        [
+            [1, 1, 1],
+            [2, 1, 1],
+            [3, 1, 1],
+            [1, 2, 1],
+            [2, 2, 1],
+            [3, 2, 1],
+            [1, 3, 1],
+            [2, 3, 1],
+            [3, 3, 1],
+            [1, 1, 2],
+            [2, 1, 2],
+            [3, 1, 2],
+            [1, 2, 2],
+            [3, 2, 2],
+            [1, 3, 2],
+            [2, 3, 2],
+            [3, 3, 2],
+            [1, 1, 3],
+            [2, 1, 3],
+            [3, 1, 3],
+            [1, 2, 3],
+            [2, 2, 3],
+            [3, 2, 3],
+            [1, 3, 3],
+            [2, 3, 3],
+            [3, 3, 3],
+        ])
     nbr_offsts = 2*np.ones((26, 3)) - nbr_offsts
     nbr_dists = np.sqrt(np.sum(nbr_offsts*nbr_offsts, axis=-1))
 
-
     # ====== Main Loop =========
 
-    for k in range(int(np.prod(ncells))): # Do this for all cells.
-        logging.debug('---------------------------------------')
+    # Do this for all cells.
+    for k in trange(int(np.prod(ncells)), desc='Fitting cells'):
 
-        if ((np.floor(100*(k+1)/np.prod(ncells)) - np.floor(100*k/np.prod(ncells)) > 0) or k == 0):
-            pcdone = np.floor(100*k/np.prod(ncells))
-            print('Fitting cells, %d%% Complete.' % pcdone)
-    		# if ((display==1) and np.mod(pcdone,5) == 0):
-    		# 	disp3dmp(pcim,imlow,imhigh,cntr,3);
-    		# 	drawnow;
-    		# 	# saveimage(pcdone);
-
-
-        cellnum = cellorder.flatten()[k]
+        cellnum = cellorder[k]
+        cellnum_idx = np.unravel_index(cellnum, ncells, order='F')
+        # print(cellstartX[xmap[cellnum_idx]-1] + celloffsetX)
+        # assert False
 
     	# ===== Extract Data Points from im.
-        # print(xmap[])
-        celldata = im[
-            cellstartX[xmap[np.unravel_index(cellnum, xmap.shape)]] + celloffsetX,
-            cellstartY[ymap[np.unravel_index(cellnum, ymap.shape)]] + celloffsetY,
-            cellstartZ[zmap[np.unravel_index(cellnum, zmap.shape)]] + celloffsetZ]
+        X, Y, Z = np.meshgrid(
+            cellstartX[xmap[cellnum_idx]-1] + celloffsetX - 1,
+            cellstartY[ymap[cellnum_idx]-1] + celloffsetY - 1,
+            cellstartZ[zmap[cellnum_idx]-1] + celloffsetZ - 1)
+        celldata = im[X, Y, Z]
 
     	#disp('CELL RANGE: ');
     	#disp(cellstartX(xmap(cellnum))+celloffsetX);
     	#disp(cellstartY(ymap(cellnum))+celloffsetY);
     	#disp(cellstartZ(zmap(cellnum))+celloffsetZ);
 
-    	# ===== Calculate angle of best fit line through points, and origin.
+    	# Calculate angle of best fit line through points, and origin.
     	# Angle is in the range [-pi/2, pi/2]
         an = scatterangle(
-            np.real(celldata.flatten()),
-            np.imag(celldata.flatten()))
+            np.real(celldata.flatten('F')),
+            np.imag(celldata.flatten('F')))
 
         anv = np.exp(1j*an)
-        # magv = [real(celldata(:)) imag(celldata(:))]*[real(anv);imag(anv)];
-        magv = np.concatenate((
-            np.real(celldata.flatten())[:, None],
-            np.imag(celldata.flatten())[:, None]), axis=1) @ np.array([np.real(anv), np.imag(anv)])
-        cellweight[np.unravel_index(cellnum, cellweight.shape)] = np.sum(np.abs(magv))
-
-    	#plot(real(celldata(:)),imag(celldata(:)),'.');
-    	#a = axis;
-    	#axis(max(abs(a))*[-1 1 -1 1]);
-
-
-
+        # Transposition magic to match MATLAB flattening of 3-d array
+        tmp = celldata.transpose((1, 0, 2)).flatten('F')
+        tmp = np.concatenate((
+            tmp.real[:, None],
+            tmp.imag[:, None]), axis=1)
+        magv = tmp @ np.array([anv.real, anv.imag])
+        cellweight[cellnum_idx] = np.sum(np.abs(magv))
 
     	# ===== Compare with weighted average of neighbors.
 
-        ninds = nbr_offsts @ celldelta[cellnum, :].conj().T # Dot products.
-    	# f = find(ninds < 0) # Nec. for closer.
+        # Dot products.
+        ninds = nbr_offsts @ celldelta[cellnum, :]
+
+        # Nec. for closer.
         f = ninds < 0
         cands = nbr_offsts[f, :]
         canddists = nbr_dists[f]
-        ndelts = cands + np.ones((np.sum(f), 1)) @ celldelta[cellnum, :][None, :]
+        ndelts = cands + (
+            np.ones((np.sum(f), 1)) @ celldelta[cellnum, :][None, :])
         ndists = np.sqrt(np.sum(ndelts*ndelts, axis=-1))
-    	# %if (debug > 1)
-    		# %disp('Cell dist from center; neighbour distances.');
-    		# %disp(celld(cellnum));
-    		# %disp(ndists);
-    	# %end;
 
     	# f = find(ndists < celld(cellnum));
-        f = ndists < celld[np.unravel_index(cellnum, celld.shape)]
+        f = ndists < celld[cellnum]
         ndelts = ndelts[f, :] # Keep only closer cell-deltas.
         nseps = canddists[f] # Sep from cell to neighbour.
 
-        # ncoords = ndelts + ccellbig(1:length(f),:) # cell coords of nbrs.
-        ncoords = ndelts + ccellbig[:np.sum(f), :]
-        ncoords = ncoords.astype(int)
+        # cell coords of nbrs.
+        ncoords = (ndelts + ccellbig[:np.sum(f), :]).astype(int)
 
+		# Figure out the "average" angle of these by summing
+		# a vector for each neighbour, whose length is reduced
+		# by the distance separating the neighbour from the cell
+		# of interest.
         vtot = 0
-
-		# % Figure out the "average" angle of these by summing
-		# % a vector for each neighbour, whose length is reduced
-		# % by the distance separating the neighbour from the cell
-		# % of interest.
-
         if np.sum(f) > 0:
-            logging.debug('Cell at <%2d,%2d,%2d> ', cells[cellnum, :])
-            for p in range(np.sum(f)):
-                logging.debug('Nearer Neighbour at <%2d,%2d,%2d> (sep = %f) ', ncoords[p, :], nseps[p])
-                if all(ncoords[p, :] > 0) and all(ncoords[p, :] <= ncells):
-                    vtot += (1/nseps[p])*np.exp(1j*cellangle[ncoords[p, 0], ncoords[p, 1], ncoords[p, 2]])
-    			  # %vtot = vtot + (1/nseps(p))*exp(i*cellangle(ncoords(p,1),ncoords(p,2),ncoords(p,3)))*cellweight(ncoords(p,1),ncoords(p,2),ncoords(p,3));
-            nang = np.arctan2(np.imag(vtot), np.real(vtot)) # "Average" neighbour angle.
+            logging.debug(
+                'Cell at <%2d,%2d,%2d> ',
+                cells[cellnum, 0],
+                cells[cellnum, 1],
+                cells[cellnum, 2])
 
-        else: # At Center point -- just take angle of average of scatter.
+            for p in range(np.sum(f)):
+                logging.debug(
+                    'Nearer Neighbour at <%2d,%2d,%2d> (sep = %f) ',
+                    ncoords[p, 0],
+                    ncoords[p, 1],
+                    ncoords[p, 2],
+                    nseps[p])
+
+                if (all(ncoords[p, :] > 0) and
+                        all(ncoords[p, :] <= ncells)):
+                    vtot += 1/nseps[p]*np.exp(1j*cellangle[
+                        ncoords[p, 0] - 1,
+                        ncoords[p, 1] - 1,
+                        ncoords[p, 2] - 1])
+
+            # "Average" neighbour angle.
+            nang = np.arctan2(vtot.imag, vtot.real)
+
+        else:
+            # At Center point -- just take angle of average of scatter
             avgvec = np.mean(celldata.flatten())
-            nang = np.arctan2(np.imag(avgvec), np.real(avgvec))
+            nang = np.arctan2(avgvec.imag, avgvec.real)
 
     	# ===== Compare with phase of neighbors, and make sure
     	#	ultimate phase differs by less than pi/2.  The hope
@@ -330,30 +342,35 @@ def rgphcorr(im, cellsize):
     	#	+/- pi in the image, but only detect the slowly-varying
     	#	phase.
 
-        diff = an - nang # Angle difference.
-        rd = np.mod(diff + np.pi/2, np.pi) - np.pi/2 # Modulus that to +/-(pi/2)
-        corran = nang + rd # Keep |difference| < pi/2.
-        corran = np.mod(corran + np.pi, 2*np.pi) - np.pi # Keep ultimate angle in [-pi,pi]
+        # Angle difference.
+        diff = an - nang
+
+        # Modulus that to +/-(pi/2)
+        rd = np.mod(diff + np.pi/2, np.pi) - np.pi/2
+
+        # Keep |difference| < pi/2.
+        corran = nang + rd
+
+        # Keep ultimate angle in [-pi,pi]
+        corran = np.mod(corran + np.pi, 2*np.pi) - np.pi
 
         logging.debug(
-            'Cell <%3d,%3d,%3d>, fit=%3d deg.  neighbor=%3d deg.  final=%3d deg.',
-            xmap[np.unravel_index(cellorder[k], xmap.shape)],
-            ymap[np.unravel_index(cellorder[k], ymap.shape)],
-            zmap[np.unravel_index(cellorder[k], zmap.shape)],
+            'Cell <%3d,%3d,%3d>, fit=%3d deg.  neighbor=%3d deg.  '
+            'final=%3d deg.',
+            xmap[cellnum_idx],
+            ymap[cellnum_idx],
+            zmap[cellnum_idx],
             np.round(180/np.pi*an),
             np.round(180/np.pi*nang),
             np.round(180/np.pi*corran))
 
     	# ===== Store and Correct phase
+        cellangle[cellnum_idx] = corran
 
-        cellangle[np.unravel_index(cellnum, cellangle.shape)] = corran
-        pf = np.exp(-1j*corran) # Correction phase factor.
-        pcim[
-            cellstartX[xmap[np.unravel_index(cellnum, xmap.shape)]] + celloffsetX,
-            cellstartY[ymap[np.unravel_index(cellnum, ymap.shape)]] + celloffsetY,
-            cellstartZ[zmap[np.unravel_index(cellnum, zmap.shape)]] + celloffsetZ] = pf*celldata
+        # Correction phase factor.
+        pf = np.exp(-1j*corran)
+        pcim[X, Y, Z] = pf*celldata
 
-
-    # end;	% End of main loop.
+    # End of main loop.
 
     return(pcim, cellangle)
