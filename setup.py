@@ -15,10 +15,10 @@ setup(
     description='SSFP simulation',
     long_description=open('README.rst').read(),
     install_requires=[
-        "numpy>=1.17.2",
-        "matplotlib>=3.1.1",
+        "numpy>=1.18.0",
+        "matplotlib>=3.1.2",
         "scikit-image>=0.15.0",
-        "phantominator>=0.4.3",
+        "phantominator>=0.5.0",
         "tqdm>=4.36.1"
     ],
     python_requires='>=3.6',
