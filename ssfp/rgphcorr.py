@@ -57,6 +57,8 @@ def rgphcorr(im, cellsize=(4, 4, 4)):
         Image following phase correction.
     cellangle : array_like
         Angle removed from each cell.
+    cellweight : array_like
+        Weights for each cell (unused in current implementation).
 
     Notes
     -----
@@ -131,8 +133,8 @@ def rgphcorr(im, cellsize=(4, 4, 4)):
     # Angles ultimately removed in correction:
     cellangle = np.zeros(ncells)
 
-    # Weights for each cell, calculated as sum of mags of dot
-    # products with angle.
+    # # Weights for each cell, calculated as sum of mags of dot
+    # # products with angle.
     cellweight = np.zeros(ncells)
 
     # ======= Define coordinate arrays =======
@@ -261,7 +263,8 @@ def rgphcorr(im, cellsize=(4, 4, 4)):
     # ====== Main Loop =========
 
     # Do this for all cells.
-    for k in trange(int(np.prod(ncells)), desc='Fitting cells'):
+    desc = 'Fitting cells'
+    for k in trange(int(np.prod(ncells)), desc=desc, leave=False):
 
         cellnum = cellorder[k]
         cellnum_idx = np.unravel_index(cellnum, ncells, order='F')
@@ -280,11 +283,9 @@ def rgphcorr(im, cellsize=(4, 4, 4)):
 
     	# Calculate angle of best fit line through points, and origin.
     	# Angle is in the range [-pi/2, pi/2]
-        an = scatterangle(
-            np.real(celldata.flatten('F')),
-            np.imag(celldata.flatten('F')))
-
+        an = scatterangle(celldata.real, celldata.imag)
         anv = np.exp(1j*an)
+
         # Transposition magic to match MATLAB flattening of 3-d array
         tmp = celldata.transpose((1, 0, 2)).flatten('F')
         tmp = np.concatenate((
@@ -393,4 +394,4 @@ def rgphcorr(im, cellsize=(4, 4, 4)):
         cellangle = cellangle[
             px2+adjx:nx-px2, py2+adjy:ny-py2, pz2+adjz:nz-pz2]
 
-    return(pcim, cellangle)
+    return(pcim, cellangle, cellweight)
