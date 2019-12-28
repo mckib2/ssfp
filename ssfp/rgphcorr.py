@@ -41,12 +41,12 @@ def scatterangle(xi, yi):
 
     return 0.5*np.arctan2(2*sxy, sxx - syy)
 
-def rgphcorr(im, cellsize=(4, 4, 4)):
-    '''Region-growing phase correction for complex image data.
+def rgphcorr3d(im, cellsize=(4, 4, 4)):
+    '''Region-growing phase correction for 3d complex image data.
 
     Parameters
     ----------
-    im : array_like
+    im : array_like, 3-dimensional
         Array of complex pixel values from an SSFP acquisition.
     cellsize : list_like
         Size of cubic region cells.
