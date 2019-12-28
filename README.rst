@@ -2,14 +2,15 @@ SSFP
 ====
 
 Simple steady-state free precession simulation.  The goal is to
-provide a simple to use, pip-installable solution for simulating this
-wonderful pulse sequence.
+provide a simple to use, pip-installable solution for simulating and
+working with this wonderful pulse sequence.
 
 In this package:
 
 - bSSFP: `bssfp()`
 - GS solution: `gs_recon()`
 - PLANET: `planet()`
+- 3D Region Growing Phase Correction: `rgphcorr3d()`
 
 Installation
 ============
@@ -67,6 +68,18 @@ phase-cycled data.  Call like this:
         phased_cycled_pixels, alpha, TR, T1_guess,
         pcs=np.deg2rad([0, 90, 180, 270, etc...]))
 
+3D Region Growing Phase Correction [5]_ is an algorithm for
+determining water and fat images from a single bSSFP acquisition.
+It can be called like this:
+
+.. code-block:: python
+
+    from ssfp import rgphcorr3d
+    phase_corrected = rgphcorr3d(
+        dataset3d, cellsize=(4, 4, 4), slice_axis=-1)
+
+    # see ssfp.examples.basic_rgphcorr for full usage example
+
 References
 ==========
 .. [1] Xiang, Qing‐San, and Michael N. Hoff. "Banding artifact
@@ -82,3 +95,8 @@ References
        approach for simultaneous T1 and T2 mapping using
        phase‐cycled balanced steady‐state free precession."
        Magnetic resonance in medicine 79.2 (2018): 711-722.
+.. [5] Hargreaves, Brian A., et al. "Fat‐suppressed steady‐state
+       free precession imaging using phase detection." Magnetic
+       Resonance in Medicine: An Official Journal of the
+       International Society for Magnetic Resonance in Medicine
+       50.1 (2003): 210-213.
