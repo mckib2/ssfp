@@ -16,7 +16,8 @@ if __name__ == '__main__':
     data = loadmat(filepath)['dat']
 
     # Do the phase correction
-    pcim, _angles, _weights = rgphcorr3d(data, cellsize=(9, 6, 6))
+    pcim, _angles, _weights = rgphcorr3d(
+        data, cellsize=(9, 6, 6), slice_axis=0)
 
     # Choose a slice to look at
     sl = 100
