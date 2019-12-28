@@ -6,6 +6,7 @@ from math import ceil
 import logging
 
 import numpy as np
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 def ernst(TR, T1):
@@ -80,3 +81,52 @@ def download_file(address, filename, force=False):
         address, str(dest / filename), _progress)
     pbar.close()
     return str(dest / filename)
+
+class IndexTracker(object):
+    '''Use scroll wheel event to cycle through slices.'''
+    def __init__(self, ax, X):
+        self.ax = ax
+        ax.set_title('use scroll wheel to navigate slices')
+        ax.set_xlabel(
+            'left click to select point, right click to remove')
+
+        self.X = X
+        _rows, _cols, self.slices = X.shape
+        self.ind = self.slices//2
+
+        self.im = ax.imshow(self.X[:, :, self.ind])
+        self.update()
+
+    def onscroll(self, event):
+        '''Trigger scrolling event.'''
+        # print("%s %s" % (event.button, event.step))
+        if event.button == 'up':
+            self.ind = (self.ind + 1) % self.slices
+        else:
+            self.ind = (self.ind - 1) % self.slices
+        self.update()
+
+    def update(self):
+        '''Load new slice.'''
+        self.im.set_data(self.X[:, :, self.ind])
+        self.ax.set_ylabel('slice %s' % self.ind)
+        self.im.axes.figure.canvas.draw()
+
+def choose_cntr(im, slice_axis=-1):
+    '''Graphically choose point '''
+
+    fig, ax = plt.subplots(1, 1)
+    tracker = IndexTracker(ax, np.moveaxis(im, slice_axis, -1))
+    fig.canvas.mpl_connect('scroll_event', tracker.onscroll)
+
+    # Get two clicks, first is the actual point, second
+    # is just to close the input window
+    cntr = fig.ginput(n=2, show_clicks=True)[0]
+
+    # Get the current slice index and create cntr coord
+    zidx = tracker.ind
+    cntr = (zidx, int(cntr[0]), int(cntr[1]))
+    plt.close(fig)
+
+    logging.info('Choosing center point: %s', str(cntr))
+    return cntr
