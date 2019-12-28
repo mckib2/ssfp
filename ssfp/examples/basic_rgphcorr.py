@@ -4,21 +4,43 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
 
-from ssfp import rgphcorr
+from ssfp import rgphcorr3d
+from ssfp.utils import download_file
 
 if __name__ == '__main__':
 
     # Load sample data
-    data = loadmat('data/samplepsssfp.mat')['dat']
-    print(data.shape)
+    filepath = download_file(
+        'http://mrsrl.stanford.edu/~brian/psssfp/samplepsssfp.mat',
+        'samplepsssfp.mat')
+    data = loadmat(filepath)['dat']
 
-    # plt.imshow(np.abs(data[50, ...]))
-    # plt.show()
+    # Do the phase correction
+    pcim, _angles, _weights = rgphcorr3d(data, cellsize=(9, 6, 6))
 
-    pcim, cellangle = rgphcorr(data, [4, 4, 4])
+    # Choose a slice to look at
+    sl = 100
+    plt.subplot(1, 2, 1)
+    plt.imshow(np.real(data[sl, ...]))
+    plt.axis('off')
+    plt.title('Real(Image)')
 
-    plt.imshow(np.abs(pcim))
+    plt.subplot(1, 2, 2)
+    plt.imshow(np.real(pcim[sl, ...]))
+    plt.axis('off')
+    plt.title('Real(Phase Corrected Image)')
     plt.show()
 
-    plt.imshow(np.real(pcim))
+    # Look at water and fat images
+    water_mask = pcim[sl, ...].real >= 0
+    fat_mask = pcim[sl, ...].real < 0
+    plt.subplot(1, 2, 1)
+    plt.imshow(water_mask*np.abs(data[sl, ...]))
+    plt.axis('off')
+    plt.title('Water Image')
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(fat_mask*np.abs(data[sl, ...]))
+    plt.axis('off')
+    plt.title('Fat Image')
     plt.show()
