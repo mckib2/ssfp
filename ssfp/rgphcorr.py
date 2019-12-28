@@ -43,7 +43,9 @@ def scatterangle(xi, yi):
 
     return 0.5*np.arctan2(2*sxy, sxx - syy)
 
-def rgphcorr3d(im, cellsize=(4, 4, 4), use_ctr=False, slice_axis=-1):
+def rgphcorr3d(
+        im, cellsize=(4, 4, 4), use_ctr=False, slice_axis=-1,
+        ret_extra=False):
     '''Region-growing phase correction for 3d complex image data.
 
     Parameters
@@ -57,14 +59,16 @@ def rgphcorr3d(im, cellsize=(4, 4, 4), use_ctr=False, slice_axis=-1):
         If use_ctr=False, use GUI to choose starting point in fat.
     slice_axis : int, optional
         Axis holding slices.  Only used if use_ctr=False.
+    ret_extra : bool, optional
+        Also return angles and weights.
 
     Returns
     -------
     pcim : array_like
         Image following phase correction.
-    cellangle : array_like
+    cellangle : array_like, optional
         Angle removed from each cell.
-    cellweight : array_like
+    cellweight : array_like, optional
         Weights for each cell (unused in current implementation).
 
     Notes
@@ -404,4 +408,6 @@ def rgphcorr3d(im, cellsize=(4, 4, 4), use_ctr=False, slice_axis=-1):
         cellangle = cellangle[
             px2+adjx:nx-px2, py2+adjy:ny-py2, pz2+adjz:nz-pz2]
 
-    return(pcim, cellangle, cellweight)
+    if ret_extra:
+        return(pcim, cellangle, cellweight)
+    return pcim
