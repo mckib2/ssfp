@@ -68,7 +68,8 @@ def rgphcorr3d(im, cellsize=(4, 4, 4)):
     pixel, regions are added, and the slowly-varying phase
     is removed on a cell-by-cell basis.
 
-    Implements the algorithm described in [1]_.
+    Implements the algorithm described in [1]_.  Based on the MATLAB
+    implementation found at [2]_.
 
     References
     ----------
@@ -77,6 +78,7 @@ def rgphcorr3d(im, cellsize=(4, 4, 4)):
            Resonance in Medicine: An Official Journal of the
            International Society for Magnetic Resonance in Medicine
            50.1 (2003): 210-213.
+    .. [2] http://mrsrl.stanford.edu/~brian/psssfp/
     '''
 
     assert im.ndim == 3, 'im should be a 3-dimensional array!'
