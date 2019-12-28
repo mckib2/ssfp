@@ -5,6 +5,8 @@ import logging
 import numpy as np
 from tqdm import trange
 
+from ssfp.utils import choose_cntr
+
 def scatterangle(xi, yi):
     '''
 	Parameters
@@ -41,15 +43,20 @@ def scatterangle(xi, yi):
 
     return 0.5*np.arctan2(2*sxy, sxx - syy)
 
-def rgphcorr3d(im, cellsize=(4, 4, 4)):
+def rgphcorr3d(im, cellsize=(4, 4, 4), use_ctr=False, slice_axis=-1):
     '''Region-growing phase correction for 3d complex image data.
 
     Parameters
     ----------
     im : array_like, 3-dimensional
         Array of complex pixel values from an SSFP acquisition.
-    cellsize : list_like
+    cellsize : list_like, optional
         Size of cubic region cells.
+    use_ctr : bool, optional
+        Automatically choose the center point as start.
+        If use_ctr=False, use GUI to choose starting point in fat.
+    slice_axis : int, optional
+        Axis holding slices.  Only used if use_ctr=False.
 
     Returns
     -------
@@ -90,11 +97,12 @@ def rgphcorr3d(im, cellsize=(4, 4, 4)):
     # ======= Find Starting Cell by Displaying Image. ===========
     szim = np.array(im.shape[:])
 
-    # TODO: select pixel in fat
-    # print('Center Cursor in Fat (i.e. Bone) and right-click')
-    # cntr, imlow, imhigh = disp3dmp(im) # Get center from disp3d.
-    #cntr = round(szim/2); % Just start in image center.
-    cntr = np.round(szim/2)
+    # Select pixel in fat
+    if use_ctr:
+        # Just start in image center.
+        cntr = np.round(szim/2)
+    else:
+        cntr = choose_cntr(np.abs(im), slice_axis=slice_axis)
 
     # Central cell, in cell coordinates.
     ccell = np.floor(cntr/cellsize + 1)
