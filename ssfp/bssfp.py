@@ -88,6 +88,7 @@ def bssfp(
     # We also assume that linear phase cycles will be added, but the
     # formulation used by Hoff, PLANET assumes subtracted, so let's
     # flip the signs
+    phase_cyc = np.array(phase_cyc)
     phase_cyc = -1*phase_cyc
 
     # Make sure we're working with arrays
