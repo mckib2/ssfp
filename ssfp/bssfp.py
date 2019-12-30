@@ -92,21 +92,36 @@ def bssfp(
     phase_cyc = -1*phase_cyc
 
     # Make sure we're working with arrays
-    T1 = np.atleast_2d(T1)
-    T2 = np.atleast_2d(T2)
-    alpha = np.atleast_2d(alpha)
-    field_map = np.atleast_2d(field_map)
-    phase_cyc = np.atleast_2d(phase_cyc)
+    T1 = np.atleast_1d(T1)
+    T2 = np.atleast_1d(T2)
+    field_map = np.atleast_1d(field_map)
+    alpha = np.atleast_1d(alpha)
+    M0 = np.atleast_1d(M0)
+    # phase_cyc = np.atleast_2d(phase_cyc)
+
+    # Get size of arrays
+    dims = []
+    candidates = [T1, T2, field_map, alpha, M0]
+    for x in candidates:
+        dims.append(x.ndim)
+    sh = candidates[np.argmax(dims)].shape[:]
+
 
     # If we have more than one phase-cycle, then add that dimension
+    # to the front
     if phase_cyc.size > 1:
-        reps = (phase_cyc.size, 1, 1)
-        phase_cyc = np.tile(
-            phase_cyc, T1.shape[:] + (1,)).transpose((2, 0, 1))
-        T1 = np.tile(T1, reps)
-        T2 = np.tile(T2, reps)
-        alpha = np.tile(alpha, reps)
-        field_map = np.tile(field_map, reps)
+        reps = (phase_cyc.size,) + (1,)*len(sh)
+        phase_cyc = np.moveaxis(np.tile(
+            phase_cyc, sh + (1,)), -1, 0)
+
+        # Make all arrays the correct size or make scalars of only
+        # a single value
+        for ii, x in enumerate(candidates):
+            if x.shape == sh:
+                candidates[ii] = np.tile(x[None, ...], reps)
+            else:
+                assert x.ndim == 1
+                candidates[ii] = x[0]
 
     # All this nonsense so we don't divide by 0
     E1 = np.zeros(T1.shape)
