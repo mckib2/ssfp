@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 def robustcc(
         data, method='simple', mask=None, coil_axis=-1, pc_axis=-2):
-    '''Robust coil combination for bSSFP acquisitions.
+    '''Robust elliptcal-model-preserving coil combination for bSSFP.
 
     Parameters
     ----------
@@ -27,6 +27,23 @@ def robustcc(
     res : array_like
         Complex coil-combined data that preserves elliptical
         relationships between phase-cycle pixels.
+
+    Notes
+    -----
+    Implements the method described in [1]_.  This coil combination
+    method preserves elliptical relationships between phase-cycle
+    pixels for more efficient computation, e.g., gs_recon which
+    reconstructs one coil at a time ([2]_).
+
+    References
+    ----------
+    .. [1] N. McKibben, G. Tarbox, E. DiBella, and N. K. Bangerter,
+           "Robust Coil Combination for bSSFP Elliptical Signal
+           Model," Proceedings of the 28th Annual Meeting of the
+           ISMRM; Sydney, NSW, Australia, 2020.
+    .. [2] Xiang, Qing‐San, and Michael N. Hoff. "Banding artifact
+           removal for bSSFP imaging with an elliptical signal model."
+           Magnetic resonance in medicine 71.3 (2014): 927-933.
     '''
 
     # Put coil and phase-cycle axes where we expect them
