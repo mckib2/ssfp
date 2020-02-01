@@ -11,6 +11,7 @@ In this package:
 - GS solution: `gs_recon()`
 - PLANET: `planet()`
 - 3D Region Growing Phase Correction: `rgphcorr3d()`
+- Robust Coil Combination: `robustcc()`
 
 Installation
 ============
@@ -80,6 +81,22 @@ It can be called like this:
 
     # see ssfp.examples.basic_rgphcorr for full usage example
 
+Robust Coil Combination for bSSFP Elliptical Signal Model [6]_ is a
+coil combination method that preserves the elliptical relationships
+between phase-cycled pixels.  It has two variants: simple and full.
+By default, the simple method is called.  The full method is very
+slow and only used for validation of the simple method.
+Robust coil combination can be called like this:
+
+.. code-block:: python
+
+    from ssfp import robustcc
+
+    sx, sy, sz, num_pc, num_coils = data.shape[:]
+    coil_combined = robustcc(data, pc_axis=-2, coil_axis=-1)
+
+    # see ssfp.examples.basic_robustcc for more usage examples
+
 References
 ==========
 .. [1] Xiang, Qing‐San, and Michael N. Hoff. "Banding artifact
@@ -100,3 +117,7 @@ References
        Resonance in Medicine: An Official Journal of the
        International Society for Magnetic Resonance in Medicine
        50.1 (2003): 210-213.
+.. [6] N. McKibben, G. Tarbox, E. DiBella, and N. K. Bangerter,
+       "Robust Coil Combination for bSSFP Elliptical Signal
+       Model," Proceedings of the 28th Annual Meeting of the
+       ISMRM; Sydney, NSW, Australia, 2020.
