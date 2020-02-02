@@ -45,8 +45,7 @@ if __name__ == '__main__':
         res = bssfp(
             T1, T2, TR=TR, alpha=alpha, field_map=df, phase_cyc=pcs,
             M0=M0, delta_cs=0, phi_rf=np.angle(csm[None, ..., ii]),
-            phi_edd=0, phi_drift=0)
-        res = np.moveaxis(res, 0, -1)
+            phi_edd=0, phi_drift=0, target_pc_axis=-1)
         data[..., ii] = np.abs(csm[..., None, ii])*res
 
     # Do coil-by-coil recon
