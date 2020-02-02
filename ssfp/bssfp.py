@@ -4,7 +4,7 @@ import numpy as np
 
 def bssfp(
         T1, T2, TR, alpha, field_map=0, phase_cyc=0, M0=1, delta_cs=0,
-        phi_rf=0, phi_edd=0, phi_drift=0):
+        phi_rf=0, phi_edd=0, phi_drift=0, target_pc_axis=0):
     r'''bSSFP transverse signal at time TE after excitation.
 
     Parameters
@@ -32,6 +32,9 @@ def bssfp(
         phase errors due to eddy current effects (in rad).
     phi_drift : float, optional
         phase errors due to B0 drift (in rad).
+    target_pc_axis : int, optional
+        Where the new phase-cycle dimension should be inserted.  Only
+        used if phase_cyc is an array.
 
     Returns
     -------
@@ -131,7 +134,14 @@ def bssfp(
     Mxy *= _get_bssfp_phase(
         T2, TR, field_map, delta_cs, -phi_rf, -phi_edd, -phi_drift)
 
-    return Mxy.squeeze()
+    # If multiple phase-cycles are being generated, move them to
+    # specified axis
+    Mxy = Mxy.squeeze()
+    if phase_cyc.size > 1:
+        # phase-cycle dimension currently in 0th position
+        Mxy = np.moveaxis(Mxy, 0, target_pc_axis)
+
+    return Mxy
 
 def _get_bssfp_phase(
         T2, TR, field_map, delta_cs=0, phi_rf=0, phi_edd=0,
