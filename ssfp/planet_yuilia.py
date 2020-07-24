@@ -3,7 +3,7 @@ import numpy as np
 
 from .planet import _fit_ellipse_halir
 
-def PLANET_2D_total(X, Y, TR, FAr, mask=None, pc_axis=-1):
+def PLANET_2D_total(X, Y, TR, FA, mask=None, pc_axis=-1):
 
     assert X.shape == Y.shape, 'X and Y must be the same shape!'
     X = np.moveaxis(X, pc_axis, -1)
@@ -15,9 +15,22 @@ def PLANET_2D_total(X, Y, TR, FAr, mask=None, pc_axis=-1):
     if mask is None:
         mask = np.ones(sh, dtype=bool)
 
-    # FAr can either be a scalar or array
-    if not isinstance(type(FAr), np.ndarray):
-        FAr = np.ones(sh)*FAr
+    # FA can either be a scalar or array;
+    # if it's a scalar, make it look like an array
+    if not isinstance(type(FA), np.ndarray):
+        class UniformArray:
+            def __init__(self, val):
+                self.val = val
+                self.cos_val = np.cos(val)
+                self.shape = sh
+            def __getitem__(self, *args):
+                return self.val
+            def cos(self):
+                return self.cos_val
+        FA = UniformArray(FA)
+        # F[ii, jj, ...] returns FA for any arguments to []
+        # np.cos(F[ii, jj, ...]) return np.cos(FA) for any arguments to []
+    assert FA.shape == sh
 
     # Result arrays
     Phimap = np.zeros(sh)
@@ -32,9 +45,6 @@ def PLANET_2D_total(X, Y, TR, FAr, mask=None, pc_axis=-1):
     # Loop over each pixel:
     for ii in range(sx):
         for jj in range(sy):
-
-            # Flip angle for this pixel
-            FA = FAr[ii, jj]
 
             # Skip empty phase-cycles
             if np.all(X[ii, jj, :] == 0) and np.all(Y[ii, jj, :]):
@@ -114,7 +124,7 @@ def PLANET_2D_total(X, Y, TR, FAr, mask=None, pc_axis=-1):
             M = Xc*(1 - b*b)/(1 - a*b)
 
             T2[ii, jj] = -TR/np.log(a)
-            cFA = np.cos(FA)
+            cFA = np.cos(FA[ii, jj])
             T1[ii, jj] = -TR/np.log(((a*(1 + cFA - a*b*cFA) - b)/(a*(1 + cFA - a*b) - b*cFA)))
             Phimap[ii, jj] = phi
             Mmap[ii, jj] = M
