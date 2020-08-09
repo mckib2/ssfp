@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import multivariate_normal
 from phantominator import shepp_logan
-from tqdm import tqdm
 
 from ssfp import bssfp, robustcc, planet
 
@@ -62,21 +61,8 @@ if __name__ == '__main__':
     res_rcc_simple = robustcc(data, method='simple', coil_axis=-1, pc_axis=-2)
 
     # PLANET
-    mask = np.abs(M0.flatten()) > 1e-8
-    idx = np.argwhere(mask).squeeze()
-    res_rcc_simple = np.reshape(res_rcc_simple, (-1, npcs)).T
-    T1map = np.zeros((N*N))
-    T2map = np.zeros((N*N))
-    for idx0 in tqdm(idx, leave=False, total=idx.size):
-        try:
-            _Meff, T1map[idx0], T2map[idx0] = planet(
-                res_rcc_simple[:, idx0], alpha=alpha, TR=TR, T1_guess=1, pcs=pcs)
-        except:
-            # Failed to fit
-            pass
-    mask = np.reshape(mask, (N, N))
-    T1map = np.reshape(T1map, (N, N))
-    T2map = np.reshape(T2map, (N, N))
+    mask = np.abs(M0) > 1e-8
+    _Meff, T1map, T2map = planet(res_rcc_simple, alpha, TR, T1_guess=1, mask=mask, pc_axis=-1)
 
     # Stop timer
     print('Recon took %g sec' % (time() - t0))

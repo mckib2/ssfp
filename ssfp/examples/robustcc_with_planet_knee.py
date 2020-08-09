@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from scipy.stats import multivariate_normal
 from skimage.filters import threshold_li
 from phantominator import shepp_logan
-from tqdm import tqdm
 
 from ssfp import bssfp, robustcc, gs_recon, planet
 
@@ -38,20 +37,7 @@ if __name__ == '__main__':
     mask = gs > thresh
 
     # PLANET
-    idx = np.argwhere(mask.flatten()).squeeze()
-    res_rcc_simple = np.reshape(res_rcc_simple, (-1, npcs)).T
-    T1map = np.zeros((sx*sy))
-    T2map = np.zeros((sx*sy))
-    for idx0 in tqdm(idx, leave=False, total=idx.size):
-        try:
-            _Meff, T1map[idx0], T2map[idx0] = planet(
-                res_rcc_simple[:, idx0], alpha=alpha, TR=TR, T1_guess=1, pcs=pcs, disp=False)
-        except:
-            plt.plot(res_rcc_simple[:, idx0].real, res_rcc_simple[:, idx0].imag)
-            plt.show()
-    mask = np.reshape(mask, (sx, sy))
-    T1map = np.reshape(T1map, (sx, sy))
-    T2map = np.reshape(T2map, (sx, sy))
+    _Meff, T1map, T2map = planet(res_rcc_simple, alpha, TR, T1_guess=1, mask=mask)
 
     # Stop timer
     print('Recon took %g sec' % (time() - t0))

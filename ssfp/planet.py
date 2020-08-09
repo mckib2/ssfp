@@ -73,7 +73,7 @@ def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
         recon_idx = np.nonzero(np.sum(np.abs(I).reshape((-1, npcs)), axis=-1))[0]
     else:
         recon_idx = np.nonzero(mask.flatten())[0]
-    recon_idx = list(range(np.prod(sh)))
+    #recon_idx = list(range(np.prod(sh)))
     ellipse_coefs = fit_ellipse_halir(np.take(
         I.reshape((-1, npcs)),
         recon_idx,
