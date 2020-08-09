@@ -1,3 +1,4 @@
+'''Python implementation of PLANET algorithm.'''
 
 import numpy as np
 from ellipsinator import fit_ellipse_halir
