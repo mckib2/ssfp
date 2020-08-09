@@ -3,65 +3,77 @@ import numpy as np
 
 from .planet import _fit_ellipse_halir
 
-def PLANET_2D_total(X, Y, TR, FA, mask=None, pc_axis=-1):
+class UniformArray:
+    def __init__(self, val, sh):
+        self.val = val
+        self.shape = sh
+    def cos_init(self):
+        self.cos_val = np.cos(self.val)
+    def __getitem__(self, *args):
+        return self.val
+    def cos(self):
+        return self.cos_val
 
-    assert X.shape == Y.shape, 'X and Y must be the same shape!'
-    X = np.moveaxis(X, pc_axis, -1)
-    Y = np.moveaxis(Y, pc_axis, -1)
-    sx, sy, npcs = X.shape[:]
-    sh = X.shape[:2]
 
-    # Mask can be used as Solution Mask, or just ones()
-    if mask is None:
-        mask = np.ones(sh, dtype=bool)
+def planet(I, TR, FA, T1_guess=None, mask=None, pc_axis=-1):
+
+    I = np.moveaxis(I, pc_axis, -1)
+    X, Y = I.real, I.imag
+    sx, sy, npcs = I.shape[:]
+    sh = I.shape[:2]
 
     # FA can either be a scalar or array;
     # if it's a scalar, make it look like an array
     if not isinstance(type(FA), np.ndarray):
-        class UniformArray:
-            def __init__(self, val):
-                self.val = val
-                self.cos_val = np.cos(val)
-                self.shape = sh
-            def __getitem__(self, *args):
-                return self.val
-            def cos(self):
-                return self.cos_val
-        FA = UniformArray(FA)
+        FA = UniformArray(FA, sh)
+        FA.cos_init()
         # F[ii, jj, ...] returns FA for any arguments to []
-        # np.cos(F[ii, jj, ...]) return np.cos(FA) for any arguments to []
-    assert FA.shape == sh
+        # np.cos(F[ii, jj, ...]) returns np.cos(FA) for any arguments to []
+
+    # Choose an intial estimate for T1
+    if T1_guess is None:
+        T1_guess = UniformArray(1, sh) # 1sec arbitrariliy
+
+    # Choose which pixels are reconstructed
+    if mask is None:
+        mask = UniformArray(True, sh)
 
     # Result arrays
-    Phimap = np.zeros(sh)
-    Mmap = np.zeros(sh)
-    T1 = np.zeros(sh)
-    T2 = np.zeros(sh)
-    Amap = np.zeros(sh)
-    Bmap = np.zeros(sh)
-    Xcmap = np.zeros(sh)
-    Ycmap = np.zeros(sh)
+    Phimap = np.empty(sh)
+    Mmap = np.empty(sh)
+    T1 = np.empty(sh)
+    T2 = np.empty(sh)
+    Amap = np.empty(sh)
+    Bmap = np.empty(sh)
+    Xcmap = np.empty(sh)
+    Ycmap = np.empty(sh)
 
     # Loop over each pixel:
     for ii in range(sx):
         for jj in range(sy):
 
+            # Skip masked items
+            if not mask[ii, jj]:
+                continue
+
             # Skip empty phase-cycles
-            if np.all(X[ii, jj, :] == 0) and np.all(Y[ii, jj, :]):
+            if np.all(I[ii, jj, :] == 0):
                 T1[ii, jj] = -1
                 T2[ii, jj] = -1
                 continue
 
             # Fit the ellipse
             try:
-                af = _fit_ellipse_halir(X[ii, jj, :], Y[ii, jj, :]).real
+                af = _fit_ellipse_halir(
+                    I[ii, jj, :].real,
+                    I[ii, jj, :].imag).real
             except np.linalg.LinAlgError:
                 T1[ii, jj] = -1
                 T2[ii, jj] = -1
                 continue
 
             if af.size != 6:
-                # sometimes the fitting fails and returns nonsense...
+                # sometimes the fitting fails and returns nonsense
                 T1[ii, jj] = -1
                 T2[ii, jj] = -1
                 continue
@@ -72,11 +84,12 @@ def PLANET_2D_total(X, Y, TR, FA, mask=None, pc_axis=-1):
 
             c = np.cos(phi)
             s = np.sin(phi)
+            c2, s2 = c**2, s**2
 
-            A1 = A*c**2 + B*c*s + C*s**2
+            A1 = A*c2 + B*c*s + C*s2
             D1 = D*c + E*s
             E1 = E*c - D*s
-            C1 = A*s**2 - B*c*s + C*c**2
+            C1 = A*s2 - B*c*s + C*c2
             F11 = F - ((D1**2)/(4*A1) + (E1**2)/(4*C1))
 
             Xc = -D1/(2*A1)
@@ -97,13 +110,14 @@ def PLANET_2D_total(X, Y, TR, FA, mask=None, pc_axis=-1):
                     phi -= np.pi/2
 
             if not skip_redo:
-                # If phi changed then we need to redo these
+                # If phi changed then we need to recompute
                 c = np.cos(phi)
                 s = np.sin(phi)
-                A1 = A*c**2 + B*c*s + C*s**2
+                c2, s2 = c**2, s**2
+                A1 = A*c2 + B*c*s + C*s2
                 D1 = D*c + E*s
                 E1 = E*c - D*s
-                C1 = A*s**2 - B*c*s + C*c**2
+                C1 = A*s2 - B*c*s + C*c2
                 F11 = F - ((D1**2)/(4*A1) + (E1**2)/(4*C1))
 
                 Xc = -D1/(2*A1)
@@ -111,15 +125,13 @@ def PLANET_2D_total(X, Y, TR, FA, mask=None, pc_axis=-1):
                 aa = np.sqrt(-F11/A1)
                 bb = np.sqrt(-F11/C1)
 
-
-            if mask[ii, jj] == 1:
-                # if FAr>LimitArray=acos(E1)=acos(exp(-TR/T1)):
-                b = (-Xc*aa + bb*np.sqrt(Xc*Xc - aa*aa + bb*bb))/(Xc*Xc + bb*bb)
+            # Decide sign of first term of b
+            if FA[ii, jj] > np.arccos(np.exp(-TR/T1_guess[ii, jj])):
+                bsign = -1
             else:
-                # if FAr<=LimitArray=acos(E1)=acos(exp(-TR/T1)):
-                b = ( Xc*aa + bb*np.sqrt(Xc*Xc - aa*aa + bb*bb))/(Xc*Xc + bb*bb)
+                bsign = 1
 
-
+            b = (bsign*Xc*aa + bb*np.sqrt(Xc*Xc - aa*aa + bb*bb))/(Xc*Xc + bb*bb)
             a = bb/(b*bb + Xc*np.sqrt(1 - b*b))
             M = Xc*(1 - b*b)/(1 - a*b)
 
@@ -161,7 +173,7 @@ if __name__ == '__main__':
     sig += 1e-7*(np.random.normal(0, 1, sig.shape) + 1j*np.random.normal(0, 1, sig.shape))*mask
 
     # Do the thing
-    T1est, T2est, Phimap, Amap, Bmap, Xcmap, Ycmap, Mmap = PLANET_2D_total(sig.real, sig.imag, TR, alpha, mask, pc_axis=0)
+    T1est, T2est, Phimap, Amap, Bmap, Xcmap, Ycmap, Mmap = planet(sig, TR, alpha, mask, pc_axis=0)
 
     # Take a look
     plt.imshow(T1est*mask, vmin=0, vmax=np.max(T1.flatten()))
