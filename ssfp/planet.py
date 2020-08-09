@@ -1,31 +1,30 @@
-'''Python implementation of the PLANET algorithm.'''
 
 import numpy as np
+from ellipsinator import fit_ellipse_halir
 
-def planet(
-        I, alpha, TR, T1_guess, pcs=None, fit_ellipse=None,
-        compute_df=False, disp=False):
+def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
     '''Simultaneous T1, T2 mapping using phase‐cycled bSSFP.
 
     Parameters
     ----------
     I : array_like
-        Complex voxels from phase-cycled bSSFP images.
-    alpha : float
+        Complex phase-cycled bSSFP images. The data may be
+        arbitrarily dimensional. The phase-cycle axis (pc_axis)
+        holds the phase-cycle data.
+    alpha : float or array_like
         Flip angle (in rad).
     TR : float
         Repetition time (in sec).
-    T1_guess : float
-        Estimate of expected T1 value (in sec).
-    pcs : array_like, optional
-        Phase-cycles that generate phase-cycle images of I (required
-        if computing df) (in rad).
-    fit_ellipse : callable, optional
-        Function used to fit data points to ellipse.
-    compute_df : bool, optional
-        Whether or not estimate local off-resonance, df.
-    disp : bool, optional
-        Show debug plots.
+    T1_guess : float, optional
+        Estimate of expected T1 value (in sec). If None, 1 sec
+        is used as the default.
+    mask : array_like or None, optional
+        Which pixels of I to reconstruct.  If None, the mask
+        reconstructs each pixel that has nonzero PC data.
+    pc_axis : int, optional
+        The axis that holds the phase-cycle data.
+    ret_all : bool, optional
+        Return all matrices return by original PLANET.
 
     Returns
     -------
@@ -35,21 +34,12 @@ def planet(
         Estimate of T1 values (in sec).
     T2 : array_like
         Estimate of T2 values (in sec).
-    df : array_like, optional
-        Estimate of off-resonance values (in Hz).
 
-    Raises
-    ------
-    AssertionError
-        If fit_ellipse returns something that is not an ellipse
-    AssertionError
-        If the rotation fails and xc < 0 or yc =/= 0.
-    AssertionError
-        If a, b, or Meff are outside of interval (0, 1).
-    ValueError
-        If ellipse callapses to a line.
-    ValueError
-        If the sign of b cannot be determined.
+    phi : array_like, optional
+    Xc : array_like, optional
+    Yc : array_like, optional
+    A : array_like, optional
+    B : array_like, optional
 
     Notes
     -----
@@ -57,15 +47,6 @@ def planet(
     fitting method they use (and which is implemented here) may not
     be the best method, but it is quick.  Could add more options for
     fitting in the future.
-
-    fit_ellipse(x, y) should take two arguments and return a vector
-    containing the coefficients of the implicit ellipse equation.  If
-    fit_ellipse=None then the fit_ellipse_halir() function will be
-    used.
-
-    pcs should be a list of phase-cycles in radians.  If pcs=None, it
-    will be determined as I.size equally spaced phasce-cycles on the
-    interval [0, 2pi).
 
     Implements algorithm described in [1]_.
 
@@ -76,345 +57,135 @@ def planet(
            phase‐cycled balanced steady‐state free precession."
            Magnetic resonance in medicine 79.2 (2018): 711-722.
     '''
+   # Phase cycles to the back
+    I = np.moveaxis(I, pc_axis, -1)
+    npcs = I.shape[-1]
+    sh = I.shape[:-1]
 
-    # Make sure we have an ellipse fitting function
-    if fit_ellipse is None:
-        fit_ellipse = _fit_ellipse_halir
+    # alpha can either be a scalar or array
+    # Choose an intial estimate for T1
+    if T1_guess is None:
+        T1_guess = 1 # 1sec arbitrariliy
 
-    # Make sure we know what phase-cycles we have if we're computing
-    # df
-    if compute_df:
-        if pcs is None:
-            pcs = np.linspace(0, 2*np.pi, I.size, endpoint=False)
-        else:
-            # Make sure we get phase-cycles as a numpy array
-            pcs = np.array(pcs)
-        assert pcs.size == I.size, ('Number of phase-cycles must '
-                                    'match entries of I!')
+    # Fit all ellipses that are nonzero
+    if mask is None:
+        recon_idx = np.nonzero(np.sum(np.abs(I).reshape((-1, npcs)), axis=-1))[0]
+    else:
+        recon_idx = np.nonzero(mask.flatten())[0]
+    recon_idx = list(range(np.prod(sh)))
+    ellipse_coefs = fit_ellipse_halir(np.take(
+        I.reshape((-1, npcs)),
+        recon_idx,
+        axis=0))
 
-    ## Step 1. Direct linear least squares ellipse fitting to
-    ## phase-cycled bSSFP data.
-    C = fit_ellipse(I.real, I.imag)
+    # Filter out all the fitting failures
+    failure_idx = np.where(np.sum(np.abs(ellipse_coefs), axis=-1) == 0)[0]
+    recon_idx = np.setdiff1d(recon_idx, failure_idx)
+    ellipse_coefs = np.delete(ellipse_coefs, failure_idx, axis=0)
 
-    # Look at it in standard form
-    C1, C2, C3, _C4, _C5, _C6 = C[:]
-    assert C2**2 - 4*C1*C3 < 0, 'Not an ellipse!'
+    # Find ellipse rotation
+    A, B, C, D, E, F = ellipse_coefs.T
+    phi = 1/2 * np.arctan(B/(A - C))
 
-    ## Step 2. Rotation of the ellipse to initial vertical conic form.
-    xr, yr, Cr, _phi = _do_planet_rotation(I)
-    I0 = xr + 1j*yr
-    xc, yc = _get_center(Cr)
+    c = np.cos(phi)
+    s = np.sin(phi)
+    c2, s2 = c**2, s**2
 
-    # Look at it to make sure we've rotated correctly
-    if disp:
-        import matplotlib.pyplot as plt
-        Idraw = np.concatenate((I, [I[0]]))
-        I0draw = np.concatenate((I0, [I0[0]]))
-        plt.plot(Idraw.real, Idraw.imag, label='Sampled')
-        plt.plot(I0draw.real, I0draw.imag, label='Rotated')
-        plt.legend()
-        plt.axis('square')
-        plt.show()
+    A1 = A*c2 + B*c*s + C*s2
+    D1 = D*c + E*s
+    E1 = E*c - D*s
+    C1 = A*s2 - B*c*s + C*c2
+    F11 = F - ((D1**2)/(4*A1) + (E1**2)/(4*C1))
 
-    # Sanity check: make sure we got what we wanted:
-    assert np.allclose(yc, 0), 'Ellipse rotation failed! yc = %g' % yc
-    assert xc > 0, ('xc needs to be in the right half-plane! xc = %g'
-                    '' % xc)
-    # C1r, C2r, C3r, C4r, C5r, C6r = Cr[:]
+    Xc = -D1/(2*A1)
+    Yc = -E1/(2*C1)
+    aa = np.sqrt(-F11/A1)
+    bb = np.sqrt(-F11/C1)
 
+    # If phi needs to change then we need to recompute
+    aa_le_bb = aa <= bb
+    idx0 = np.logical_and(aa_le_bb, Xc < 0)
+    phi[idx0] -= np.pi*np.sign(phi[idx0])
 
-    ## Step 3. Analytical solution for parameters Meff, T1, T2.
-    # Get the semi axes, AA and BB
-    A, B = _get_semiaxes(Cr)
-    # Ellipse must be vertical -- so make the axes look like it
-    if A > B:
-        A, B = B, A
-    A2 = A**2
-    B2 = B**2
+    Yc_ge_0 = Yc >= 0
+    idx1 = np.logical_and(~aa_le_bb, Yc_ge_0)
+    phi[idx1] += np.pi/2
+
+    idx2 = np.logical_and(~aa_le_bb, ~Yc_ge_0)
+    phi[idx2] -= np.pi/2
+
+    idx = np.logical_or(idx0, np.logical_or(idx1, idx2))
+    c[idx] = np.cos(phi[idx])
+    s[idx] = np.sin(phi[idx])
+    c2[idx], s2[idx] = c[idx]**2, s[idx]**2
+    A1[idx] = A[idx]*c2[idx] + B[idx]*c[idx]*s[idx] + C[idx]*s2[idx]
+    D1[idx] = D[idx]*c[idx] + E[idx]*s[idx]
+    E1[idx] = E[idx]*c[idx] - D[idx]*s[idx]
+    C1[idx] = A[idx]*s2[idx] - B[idx]*c[idx]*s[idx] + C[idx]*c2[idx]
+    F11[idx] = F[idx] - ((D1[idx]**2)/(4*A1[idx]) + (E1[idx]**2)/(4*C1[idx]))
+    Xc[idx] = -D1[idx]/(2*A1[idx])
+    Yc[idx] = -E1[idx]/(2*C1[idx])
+    aa[idx] = np.sqrt(-F11[idx]/A1[idx])
+    bb[idx] = np.sqrt(-F11[idx]/C1[idx])
 
     # Decide sign of first term of b
-    E1 = np.exp(-TR/T1_guess)
-    aE1 = np.arccos(E1)
-    if alpha > aE1:
-        val = -1
-    elif alpha < aE1:
-        val = 1
-    elif alpha == aE1:
-        raise ValueError('Ellipse is a line! x = Meff')
+    if isinstance(alpha, np.ndarray):
+        bsign = np.ones(alpha.shape)
+        bsign[alpha > np.arccos(np.exp(-TR/T1_guess))] = -1
     else:
-        raise ValueError(
-            'Houston, we should never have raised this error...')
-
-    # See Appendix
-    # xc = np.abs(xc) # THIS IS NOT IN THE APPENDIX but by def in
-    # eq [9]
-    xc2 = xc**2
-    xcA = xc*A
-    b = (val*xcA + np.sqrt(xcA**2 - (xc2 + B2)*(A2 - B2)))/(xc2 + B2)
-    b2 = b**2
-    a = B/(xc*np.sqrt(1 - b2) + b*B)
-    ab = a*b
-    Meff = xc*(1 - b2)/(1 - ab)
-
-    # Sanity checks:
-    assert 0 < b < 1, '0 < b < 1 has been violated! b = %g' % b
-    assert 0 < a < 1, '0 < a < 1 has been violated! a = %g' % a
-    assert 0 < Meff < 1, (
-        '0 < Meff < 1 has been violated! Meff = %g' % Meff)
-
-    # Now we can find the things we were really after
-    ca = np.cos(alpha)
-    T1 = -1*TR/(
-        np.log((a*(1 + ca - ab*ca) - b)/(a*(1 + ca - ab) - b*ca)))
-    T2 = -1*TR/np.log(a)
-
-    ## Step 4. Estimation of the local off-resonance df.
-    if compute_df:
-        # The beta way:
-        # costheta = np.zeros(dphis.size)
-        # for nn in range(dphis.size):
-        #     x, y = I0[nn].real, I0[nn].imag
-        #     tanbeta = y/(x - xc)
-        #     t = np.arctan(A/B*tanbeta)
-        #     costheta[nn] = (np.cos(t) - b)/(b*np.cos(t) - 1)
-
-        # The atan2 way:
-        costheta = np.zeros(pcs.size)
-        for nn in range(pcs.size):
-            x, y = I0[nn].real, I0[nn].imag
-            t = np.arctan2(y, x - xc)
-
-            if a > b:
-                costheta[nn] = (np.cos(t) - b)/(b*np.cos(t) - 1)
-            else:
-                # Sherbakova doesn't talk about this case in the
-                # paper!
-                costheta[nn] = (np.cos(t) + b)/(b*np.cos(t) + 1)
-
-        # Get least squares estimate for K1, K2
-        X = np.array([np.cos(pcs), np.sin(pcs)]).T
-        K = np.linalg.multi_dot((np.linalg.pinv(
-            X.T.dot(X)), X.T, costheta))
-        K1, K2 = K[:]
-
-        # And finally...
-        theta0 = np.arctan2(K2, K1)
-        df = -1*theta0/(2*np.pi*TR) # spurious negative sign, bug!
-        return(Meff, T1, T2, df)
-
-    # else...
-    return(Meff, T1, T2)
-
-def _get_semiaxes(c):
-    '''Solve for semi-axes of the cartesian form of ellipse equation.
-
-    Parameters
-    ----------
-    c : array_like
-        Coefficients of general quadratic polynomial function for
-        conic functions.
-
-    Returns
-    -------
-    float
-        Semi-major axis
-    float
-        Semi-minor axis
-
-    Notes
-    -----
-    https://en.wikipedia.org/wiki/Ellipse
-    '''
-    A, B, C, D, E, F = c[:]
-    B2 = B**2
-    den = B2 - 4*A*C
-    num = 2*(A*E**2 + C*D**2 - B*D*E + den*F)
-    num *= (A + C + np.array([1, -1])*np.sqrt((A - C)**2 + B2))
-    AB = -1*np.sqrt(num)/den
-
-    # # Return semi-major axis first
-    # if AB[0] > AB[1]:
-        # print(AB)
-        # return(AB[1], AB[0])
-    return(AB[0], AB[1])
-
-def _get_center(c):
-    '''Compute center of ellipse from implicit function coefficients.
-
-    Parameters
-    ----------
-    c : array_like
-        Coefficients of general quadratic polynomial function for
-        conic funs.
-
-    Returns
-    -------
-    xc : float
-        x coordinate of center.
-    yc : float
-        y coordinate of center.
-    '''
-    A, B, C, D, E, _F = c[:]
-    den = B**2 - 4*A*C
-    xc = (2*C*D - B*E)/den
-    yc = (2*A*E - B*D)/den
-    return(xc, yc)
-
-def _rotate_points(x, y, phi, p=(0, 0)):
-    '''Rotate points x, y through angle phi w.r.t. point p.
-
-    Parameters
-    ----------
-    x : array_like
-        x coordinates of points to be rotated.
-    y : array_like
-        y coordinates of points to be rotated.
-    phi : float
-        Angle in radians to rotate points.
-    p : tuple, optional
-        Point to rotate around.
-
-    Returns
-    -------
-    xr : array_like
-        x coordinates of rotated points.
-    yr : array_like
-        y coordinates of rotated points.
-    '''
-    x = x.flatten()
-    y = y.flatten()
-    xr = (x - p[0])*np.cos(phi) - (y - p[0])*np.sin(phi) + p[0]
-    yr = (y - p[1])*np.cos(phi) + (x - p[1])*np.sin(phi) + p[1]
-    return(xr, yr)
-
-def _do_planet_rotation(I):
-    '''Rotate complex pts to fit vertical ellipse centered at (xc, 0).
-
-    Parameters
-    ----------
-    I : array_like
-        Complex points from SSFP experiment.
-
-    Returns
-    -------
-    xr : array_like
-        x coordinates of rotated points.
-    yr : array_like
-        y coordinates of rotated points.
-    cr : array_like
-        Coefficients of rotated ellipse.
-    phi : float
-        Rotation angle in radians of effective rotation to get
-        ellipse vertical and in the x > 0 half plane.
-    '''
-
-    # Represent complex number in 2d plane
-    x = I.real.flatten()
-    y = I.imag.flatten()
-
-    # Fit ellipse and find initial guess at what rotation will make it
-    # vertical with center at (xc, 0).  The arctan term rotates the
-    # ellipse to be horizontal, then we need to decide whether to add
-    # +/- 90 degrees to get it vertical.  We want xc to be positive,
-    # so we must choose the rotation to get it vertical.
-    c = _fit_ellipse_halir(x, y)
-    phi = -.5*np.arctan2(c[1], (c[0] - c[2])) + np.pi/2
-    xr, yr = _rotate_points(x, y, phi)
-
-    # If xc is negative, then we chose the wrong rotation! Do -90 deg
-    cr = _fit_ellipse_halir(xr, yr)
-    if _get_center(cr)[0] < 0:
-        # print('X IS NEGATIVE!')
-        phi = -.5*np.arctan2(c[1], (c[0] - c[2])) - np.pi/2
-        xr, yr = _rotate_points(x, y, phi)
-
-    # Fit the rotated ellipse and bring yc to 0
-    cr = _fit_ellipse_halir(xr, yr)
-    yr -= _get_center(cr)[1]
-    cr = _fit_ellipse_halir(xr, yr)
-    # print(_get_center(cr))
-
-    # With noisy measurements, sometimes the fit is incorrect in the
-    # above steps and the ellipse ends up horizontal.  We can realize
-    # this by finding the major and minor semiaxes of the ellipse.
-    # The first axis returned should be the smaller if we were
-    # correct, if not, do above steps again with an extra factor of
-    # +/- 90 deg to get the ellipse standing up vertically.
-    ax = _get_semiaxes(c)
-    if ax[0] > ax[1]:
-        # print('FLIPPITY FLOPPITY!')
-        xr, yr = _rotate_points(x, y, phi + np.pi/2)
-        cr = _fit_ellipse_halir(xr, yr)
-        if _get_center(cr)[0] < 0:
-            # print('X IS STILL NEGATIVE!')
-            phi -= np.pi/2
-            xr, yr = _rotate_points(x, y, phi)
+        if alpha > np.arccos(np.exp(-TR/T1_guess)):
+            bsign = -1
         else:
-            phi += np.pi/2
+            bsign = 1
 
-        cr = _fit_ellipse_halir(xr, yr)
-        yr -= _get_center(cr)[1]
-        cr = _fit_ellipse_halir(xr, yr)
-        # print(_get_center(cr))
+    # Compute interesting values
+    Xc2 = Xc*Xc
+    bb2 = bb*bb
+    b = (bsign*Xc*aa + bb*np.sqrt(Xc2 - aa*aa + bb2))/(Xc2 + bb2)
+    b2 = b*b
+    a = bb/(b*bb + Xc*np.sqrt(1 - b2))
+    ab = a*b
+    M = Xc*(1 - b2)/(1 - ab)
 
-    return(xr, yr, cr, phi)
+    Mmap = np.zeros(np.prod(sh))
+    Mmap[recon_idx] = M
 
-def _fit_ellipse_halir(x, y):
-    '''Improved ellipse fitting algorithm by Halir and Flusser.
+    T2 = np.zeros(np.prod(sh))
+    T2[recon_idx] = -TR/np.log(a)
 
-    Parameters
-    ----------
-    x : array_like
-        y coordinates assumed to be on ellipse.
-    y : array_like
-        y coordinates assumed to be on ellipse.
+    T1 = np.zeros(np.prod(sh))
+    calpha = np.cos(alpha)
+    T1[recon_idx] = -TR/np.log(((a*(1 + calpha - ab*calpha) - b)/(a*(1 + calpha - ab) - b*calpha)))
 
-    Returns
-    -------
-    array_like
-        Ellipse coefficients.
+    if ret_all:
+       # Pack the rest of the result matrices
+       Phimap = np.zeros(np.prod(sh))
+       Phimap[recon_idx] = phi
+       Xcmap = np.zeros(np.prod(sh))
+       Xcmap[recon_idx] = Xc
+       Ycmap = np.zeros(np.prod(sh))
+       Ycmap[recon_idx] = Yc
+       Amap = np.zeros(np.prod(sh))
+       Amap[recon_idx] = a
+       Bmap = np.zeros(np.prod(sh))
+       Bmap[recon_idx] = b
 
-    Notes
-    -----
-    Note that there should be at least 6 pairs of (x,y).
-
-    From the paper's conclusion:
-
-        "Due to its systematic bias, the proposed fitting algorithm
-        cannot be used directly in applications where excellent
-        accuracy of the fitting is required. But even in that
-        applications our method can be useful as a fast and robust
-        estimator of a good initial solution of the fitting
-        problem..."
-
-    See figure 2 from [2]_.
-    '''
-
-    # We should just have a bunch of points, so we can shape it into
-    # a column vector since shape doesn't matter
-    x = x.flatten()
-    y = y.flatten()
-
-    # Make sure we have at least 6 points (6 unknowns...)
-    if x.size < 6 and y.size < 6:
-        print((
-            'WARNING: We need at least 6 sample points for a good '
-            'fit!'))
-
-    # Here's the heavy lifting
-    D1 = np.stack((x**2, x*y, y**2)).T # quadratic pt of design matrix
-    D2 = np.stack((x, y, np.ones(x.size))).T # lin part design matrix
-    S1 = np.dot(D1.T, D1) # quadratic part of the scatter matrix
-    S2 = np.dot(D1.T, D2) # combined part of the scatter matrix
-    S3 = np.dot(D2.T, D2) # linear part of the scatter matrix
-    T = -1*np.linalg.inv(S3).dot(S2.T) # for getting a2 from a1
-    M = S1 + S2.dot(T) # reduced scatter matrix
-    M = np.array([M[2, :]/2, -1*M[1, :], M[0, :]/2]) #premult by C1^-1
-    _eval, evec = np.linalg.eig(M) # solve eigensystem
-    cond = 4*evec[0, :]*evec[2, :] - evec[1, :]**2 # evaluate a’Ca
-    a1 = evec[:, cond > 0] # eigenvector for min. pos. eigenvalue
-    a = np.vstack([a1, T.dot(a1)]).squeeze() # ellipse coefficients
-    return a/np.linalg.norm(a)
+       return(
+          np.reshape(Mmap, sh),
+          np.reshape(T1, sh),
+          np.reshape(T2, sh),
+          np.reshape(Phimap, sh),
+          np.reshape(Amap, sh),
+          np.reshape(Bmap, sh),
+          np.reshape(Xcmap, sh),
+          np.reshape(Ycmap, sh),
+       )
+    else:
+       return(
+          np.reshape(Mmap, sh),
+          np.reshape(T1, sh),
+          np.reshape(T2, sh),
+       )
 
 if __name__ == '__main__':
-    pass
+   pass
