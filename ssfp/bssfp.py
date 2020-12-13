@@ -2,6 +2,7 @@
 
 import numpy as np
 
+
 def bssfp(
         T1, T2, TR, alpha, field_map=0, phase_cyc=0, M0=1, delta_cs=0,
         phi_rf=0, phi_edd=0, phi_drift=0, target_pc_axis=0):
@@ -143,6 +144,7 @@ def bssfp(
 
     return Mxy
 
+
 def _get_bssfp_phase(
         T2, TR, field_map, delta_cs=0, phi_rf=0, phi_edd=0,
         phi_drift=0):
@@ -197,7 +199,7 @@ def _get_bssfp_phase(
            49.2 (2003): 395-397.
     '''
 
-    TE = TR/2 # assume bSSFP
+    TE = TR/2  # assume bSSFP
     phi = 2*np.pi*(
         delta_cs + field_map)*TE + phi_rf + phi_edd + phi_drift
 
@@ -206,6 +208,7 @@ def _get_bssfp_phase(
     val = np.zeros(T2.shape)
     val[idx] = -TE/T2[idx]
     return np.exp(1j*phi)*np.exp(val)
+
 
 def _get_theta(TR, field_map, phase_cyc=0, delta_cs=0):
     '''Get theta, spin phase per repetition time, given off-resonance.
@@ -241,6 +244,7 @@ def _get_theta(TR, field_map, phase_cyc=0, delta_cs=0):
     '''
 
     return 2*np.pi*(delta_cs + field_map)*TR + phase_cyc
+
 
 if __name__ == '__main__':
     pass

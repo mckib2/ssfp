@@ -1,7 +1,17 @@
-'''Python implementation of PLANET algorithm.'''
+'''Python implementation of PLANET algorithm.
+
+Notes
+-----
+Halir ellipse performs much faster! Somewhat different results though
+between fast guaranteed and Halir -- it would be interesting to do an
+analysis of the difference between the two methods and truth.
+'''
 
 import numpy as np
-from ellipsinator import fit_ellipse_halir
+# from ellipsinator import fit_ellipse_halir as ellipse_fit
+# from ellipsinator import fit_ellipse_fitzgibon as ellipse_fit
+from ellipsinator import fast_guaranteed_ellipse_estimate as ellipse_fit
+
 
 def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
     '''Simultaneous T1, T2 mapping using phase‐cycled bSSFP.
@@ -58,7 +68,7 @@ def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
            phase‐cycled balanced steady‐state free precession."
            Magnetic resonance in medicine 79.2 (2018): 711-722.
     '''
-   # Phase cycles to the back
+    # Phase cycles to the back
     I = np.moveaxis(I, pc_axis, -1)
     npcs = I.shape[-1]
     sh = I.shape[:-1]
@@ -66,15 +76,16 @@ def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
     # alpha can either be a scalar or array
     # Choose an intial estimate for T1
     if T1_guess is None:
-        T1_guess = 1 # 1sec arbitrariliy
+        T1_guess = 1  # 1sec arbitrariliy
 
     # Fit all ellipses that are nonzero
     if mask is None:
-        recon_idx = np.nonzero(np.sum(np.abs(I).reshape((-1, npcs)), axis=-1))[0]
+        recon_idx = np.nonzero(
+            np.sum(np.abs(I).reshape((-1, npcs)), axis=-1))[0]
     else:
         recon_idx = np.nonzero(mask.flatten())[0]
-    #recon_idx = list(range(np.prod(sh)))
-    ellipse_coefs = fit_ellipse_halir(np.take(
+
+    ellipse_coefs = ellipse_fit(np.take(
         I.reshape((-1, npcs)),
         recon_idx,
         axis=0))
@@ -156,37 +167,39 @@ def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
 
     T1 = np.zeros(np.prod(sh))
     calpha = np.cos(alpha)
-    T1[recon_idx] = -TR/np.log(((a*(1 + calpha - ab*calpha) - b)/(a*(1 + calpha - ab) - b*calpha)))
+    T1[recon_idx] = -TR/np.log(
+        ((a*(1 + calpha - ab*calpha) - b)/(a*(1 + calpha - ab) - b*calpha)))
 
     if ret_all:
-       # Pack the rest of the result matrices
-       Phimap = np.zeros(np.prod(sh))
-       Phimap[recon_idx] = phi
-       Xcmap = np.zeros(np.prod(sh))
-       Xcmap[recon_idx] = Xc
-       Ycmap = np.zeros(np.prod(sh))
-       Ycmap[recon_idx] = Yc
-       Amap = np.zeros(np.prod(sh))
-       Amap[recon_idx] = a
-       Bmap = np.zeros(np.prod(sh))
-       Bmap[recon_idx] = b
+        # Pack the rest of the result matrices
+        Phimap = np.zeros(np.prod(sh))
+        Phimap[recon_idx] = phi
+        Xcmap = np.zeros(np.prod(sh))
+        Xcmap[recon_idx] = Xc
+        Ycmap = np.zeros(np.prod(sh))
+        Ycmap[recon_idx] = Yc
+        Amap = np.zeros(np.prod(sh))
+        Amap[recon_idx] = a
+        Bmap = np.zeros(np.prod(sh))
+        Bmap[recon_idx] = b
 
-       return(
-          np.reshape(Mmap, sh),
-          np.reshape(T1, sh),
-          np.reshape(T2, sh),
-          np.reshape(Phimap, sh),
-          np.reshape(Amap, sh),
-          np.reshape(Bmap, sh),
-          np.reshape(Xcmap, sh),
-          np.reshape(Ycmap, sh),
-       )
-    else:
-       return(
-          np.reshape(Mmap, sh),
-          np.reshape(T1, sh),
-          np.reshape(T2, sh),
-       )
+        return(
+            np.reshape(Mmap, sh),
+            np.reshape(T1, sh),
+            np.reshape(T2, sh),
+            np.reshape(Phimap, sh),
+            np.reshape(Amap, sh),
+            np.reshape(Bmap, sh),
+            np.reshape(Xcmap, sh),
+            np.reshape(Ycmap, sh),
+        )
+
+    return (
+        np.reshape(Mmap, sh),
+        np.reshape(T1, sh),
+        np.reshape(T2, sh),
+    )
+
 
 if __name__ == '__main__':
-   pass
+    pass

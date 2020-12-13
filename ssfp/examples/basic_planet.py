@@ -1,14 +1,17 @@
 '''Show basic usage of GS solution.'''
 
+from time import perf_counter
+
 import numpy as np
 import matplotlib.pyplot as plt
+from skimage.metrics import normalized_root_mse
 from phantominator import shepp_logan
 from ssfp import bssfp, planet
 
 if __name__ == '__main__':
 
     # Shepp-Logan
-    N, nslices, npcs = 128, 2, 8 # 2 slices just to show we can
+    N, nslices, npcs = 128, 2, 8  # 2 slices just to show we can
     M0, T1, T2 = shepp_logan((N, N, nslices), MR=True, zlims=(-.25, 0))
 
     # Simulate bSSFP acquisition with linear off-resonance
@@ -19,16 +22,22 @@ if __name__ == '__main__':
         np.linspace(-1/TR, 1/TR, N))
     sig = np.empty((npcs,) + T1.shape, dtype='complex')
     for sl in range(nslices):
-        sig[..., sl] = bssfp(T1[..., sl], T2[..., sl], TR, alpha, field_map=df, phase_cyc=pcs, M0=M0[..., sl])
+        sig[..., sl] = bssfp(
+            T1[..., sl], T2[..., sl], TR, alpha, field_map=df,
+            phase_cyc=pcs, M0=M0[..., sl])
 
     # Do T1, T2 mapping for each pixel
     mask = np.abs(M0) > 1e-8
 
     # Make it noisy
-    sig += 1e-6*(np.random.normal(0, 1, sig.shape) + 1j*np.random.normal(0, 1, sig.shape))*mask
+    np.random.seed(0)
+    sig += 1e-5*(np.random.normal(0, 1, sig.shape) +
+                 1j*np.random.normal(0, 1, sig.shape))*mask
 
     # Do the thing
+    t0 = perf_counter()
     Mmap, T1est, T2est = planet(sig, alpha, TR, mask=mask, pc_axis=0)
+    print('Took %g sec to run PLANET' % (perf_counter() - t0))
 
     # Look at a single slice
     sl = 0
@@ -51,7 +60,7 @@ if __name__ == '__main__':
 
     plt.subplot(nx, ny, 3)
     plt.imshow(T1*mask - T1est)
-    plt.title('Residual')
+    plt.title('NRMSE: %g' % normalized_root_mse(T1, T1est))
     plt.axis('off')
 
     plt.subplot(nx, ny, 4)
@@ -66,6 +75,7 @@ if __name__ == '__main__':
 
     plt.subplot(nx, ny, 6)
     plt.imshow(T2 - T2est)
+    plt.title('NRMSE: %g' % normalized_root_mse(T2, T2est))
     plt.axis('off')
 
     plt.show()
