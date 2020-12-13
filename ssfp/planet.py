@@ -92,10 +92,8 @@ def planet(I, alpha, TR, T1_guess=None, pcs=None, mask=None, pc_axis=-1, ret_all
     else:
         recon_idx = np.nonzero(mask.flatten())[0]
 
-    ellipse_coefs = ellipse_fit(np.take(
-        I.reshape((-1, npcs)),
-        recon_idx,
-        axis=0))
+    I = np.take(I.reshape((-1, npcs)), recon_idx, axis=0)
+    ellipse_coefs = ellipse_fit(I)
 
     # Filter out all the fitting failures
     failure_idx = np.where(np.sum(np.abs(ellipse_coefs), axis=-1) == 0)[0]
@@ -178,48 +176,39 @@ def planet(I, alpha, TR, T1_guess=None, pcs=None, mask=None, pc_axis=-1, ret_all
         ((a*(1 + calpha - ab*calpha) - b)/(a*(1 + calpha - ab) - b*calpha)))
 
     # compute off-resonance estimates
-    # TODO: can probably do better than computing every pixel
-    Phimap = np.zeros(np.prod(sh))
-    Phimap[recon_idx] = phi
-    Phimap = np.reshape(Phimap, sh)
-    Xcmap = np.zeros(np.prod(sh))
-    Xcmap[recon_idx] = Xc
-    Xcmap = np.reshape(Xcmap, sh)
-    Ycmap = np.zeros(np.prod(sh))
-    Ycmap[recon_idx] = Yc
-    Ycmap = np.reshape(Ycmap, sh)
-    Amap = np.zeros(np.prod(sh))
-    Amap[recon_idx] = a
-    Amap = np.reshape(Amap, sh)
-    Bmap = np.zeros(np.prod(sh))
-    Bmap[recon_idx] = b
-    Bmap = np.reshape(Bmap, sh)
-
-    # Case FA > FAe
-    c = np.cos(Phimap)[..., None]
-    s = np.sin(Phimap)[..., None]
-    Xn = I.real*c + I.imag*s
-    Yn = I.imag*c - I.real*s
-    Coef = (Amap - Bmap)/(Amap*np.sqrt(1 - Bmap**2))  # Coef=A/B
-    TanT = Coef[..., None]*(Yn - Ycmap[..., None])/(Xn - Xcmap[..., None])
+    Xn = I.real*c[..., None] + I.imag*s[..., None]
+    Yn = I.imag*c[..., None] - I.real*s[..., None]
+    Coef = (a - b)/(a*np.sqrt(1 - bb2))  # Coef=A/B
+    TanT = Coef[..., None]*(Yn - Yc[..., None])/(Xn - Xc[..., None])
     T = np.arctan(TanT)  # defined on [-pi/2, pi/2]
     # unwrapping of T(k) to [-pi,pi]
-    idx0 = Xn < Xcmap[..., None]
-    idx_greater = np.logical_and(idx0, (Yn - Ycmap[..., None]) >= 0)
+    idx0 = Xn < Xc[..., None]
+    idx_greater = np.logical_and(idx0, (Yn - Yc[..., None]) >= 0)
     # T[idx_greater] = np.pi - T
     np.putmask(T, idx_greater, np.pi - T[idx_greater])
-    idx_lesser = np.logical_and(idx0, (Yn - Ycmap[..., None]) < 0)
+    idx_lesser = np.logical_and(idx0, (Yn - Yc[..., None]) < 0)
     # T[idx_lesser] = -1*np.pi + T
     np.putmask(T, idx_lesser, -1*np.pi + T[idx_lesser])
     CosT = np.cos(T)
-    b = (CosT - Bmap[..., None])/(Bmap[..., None]*CosT - 1)
+    c = (CosT - b[..., None])/(b[..., None]*CosT - 1)
     A = np.vstack((np.cos(pcs), np.sin(pcs))).T
-    print(A.shape, b.shape)
-    x = np.linalg.lstsq(A, np.reshape(b, (-1, npcs)).T, rcond=None)[0]
-    print(x.shape)
-    df = -1*np.arctan2(x[1, :], x[0, :])/(2*np.pi*TR)
+    x = np.linalg.lstsq(A, c.T, rcond=None)[0]
+    df = np.zeros(T1.shape)
+    df[recon_idx] = -1*np.arctan2(x[1, :], x[0, :])/(2*np.pi*TR)
 
     if ret_all:
+        # pack result matrices
+        Phimap = np.zeros(np.prod(sh))
+        Phimap[recon_idx] = phi
+        Xcmap = np.zeros(np.prod(sh))
+        Xcmap[recon_idx] = Xc
+        Ycmap = np.zeros(np.prod(sh))
+        Ycmap[recon_idx] = Yc
+        Amap = np.zeros(np.prod(sh))
+        Amap[recon_idx] = a
+        Bmap = np.zeros(np.prod(sh))
+        Bmap[recon_idx] = b
+
         return(
             np.reshape(Mmap, sh),
             np.reshape(T1, sh),

@@ -5,13 +5,15 @@ from time import perf_counter
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.metrics import normalized_root_mse
+from skimage.restoration import unwrap_phase
 from phantominator import shepp_logan
 from ssfp import bssfp, planet
+
 
 if __name__ == '__main__':
 
     # Shepp-Logan
-    N, nslices, npcs = 32, 2, 8  # 2 slices just to show we can
+    N, nslices, npcs = 128, 2, 8  # 2 slices just to show we can
     M0, T1, T2 = shepp_logan((N, N, nslices), MR=True, zlims=(-.25, 0))
 
     # Simulate bSSFP acquisition with linear off-resonance
@@ -48,6 +50,9 @@ if __name__ == '__main__':
     T2 = T2[..., sl]
     mask = mask[..., sl]
 
+    # Simple phase unwrapping of off-resonance estimate
+    dfest = unwrap_phase(dfest*2*np.pi*TR)/(2*np.pi*TR)
+
     nx, ny = 3, 3
     plt.subplot(nx, ny, 1)
     plt.imshow(T1*mask)
@@ -65,7 +70,7 @@ if __name__ == '__main__':
     plt.axis('off')
 
     plt.subplot(nx, ny, 4)
-    plt.imshow(T2)
+    plt.imshow(T2*mask)
     plt.title('T2 Truth')
     plt.axis('off')
 
@@ -75,12 +80,12 @@ if __name__ == '__main__':
     plt.axis('off')
 
     plt.subplot(nx, ny, 6)
-    plt.imshow(T2 - T2est)
+    plt.imshow(T2*mask - T2est)
     plt.title('NRMSE: %g' % normalized_root_mse(T2, T2est))
     plt.axis('off')
 
     plt.subplot(nx, ny, 7)
-    plt.imshow(df)
+    plt.imshow(df*mask)
     plt.title('df Truth')
     plt.axis('off')
 
@@ -90,8 +95,8 @@ if __name__ == '__main__':
     plt.axis('off')
 
     plt.subplot(nx, ny, 9)
-    plt.imshow(df - dfest)
-    plt.title('NRMSE: %g' % normalized_root_mse(df, dfest))
+    plt.imshow(df*mask - dfest)
+    plt.title('NRMSE: %g' % normalized_root_mse(df*mask, dfest))
     plt.axis('off')
 
     plt.show()
