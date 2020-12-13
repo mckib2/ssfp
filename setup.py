@@ -5,7 +5,7 @@ from setuptools import find_packages
 
 setup(
     name='ssfp',
-    version='0.5.0',
+    version='0.6.0',
     author='Nicholas McKibben',
     author_email='nicholas.bgp@gmail.com',
     packages=find_packages(),
@@ -18,9 +18,9 @@ setup(
         "numpy>=1.19.1",
         "matplotlib>=3.0.0",
         "scikit-image>=0.15.0",
-        "phantominator>=0.6.1",
+        "phantominator>=0.6.4",
         "tqdm>=4.42.0",
-        "ellipsinator>=0.0.2",
+        "ellipsinator>=0.2.1",
     ],
     python_requires='>=3.5',
 )
