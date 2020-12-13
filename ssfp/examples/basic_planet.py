@@ -11,7 +11,7 @@ from ssfp import bssfp, planet
 if __name__ == '__main__':
 
     # Shepp-Logan
-    N, nslices, npcs = 128, 2, 8  # 2 slices just to show we can
+    N, nslices, npcs = 32, 2, 8  # 2 slices just to show we can
     M0, T1, T2 = shepp_logan((N, N, nslices), MR=True, zlims=(-.25, 0))
 
     # Simulate bSSFP acquisition with linear off-resonance
@@ -36,18 +36,19 @@ if __name__ == '__main__':
 
     # Do the thing
     t0 = perf_counter()
-    Mmap, T1est, T2est = planet(sig, alpha, TR, mask=mask, pc_axis=0)
+    Mmap, T1est, T2est, dfest = planet(sig, alpha, TR, mask=mask, pc_axis=0)
     print('Took %g sec to run PLANET' % (perf_counter() - t0))
 
     # Look at a single slice
     sl = 0
     T1est = T1est[..., sl]
     T2est = T2est[..., sl]
+    dfest = dfest[..., sl]
     T1 = T1[..., sl]
     T2 = T2[..., sl]
     mask = mask[..., sl]
 
-    nx, ny = 2, 3
+    nx, ny = 3, 3
     plt.subplot(nx, ny, 1)
     plt.imshow(T1*mask)
     plt.title('T1 Truth')
@@ -76,6 +77,21 @@ if __name__ == '__main__':
     plt.subplot(nx, ny, 6)
     plt.imshow(T2 - T2est)
     plt.title('NRMSE: %g' % normalized_root_mse(T2, T2est))
+    plt.axis('off')
+
+    plt.subplot(nx, ny, 7)
+    plt.imshow(df)
+    plt.title('df Truth')
+    plt.axis('off')
+
+    plt.subplot(nx, ny, 8)
+    plt.imshow(dfest)
+    plt.title('df est')
+    plt.axis('off')
+
+    plt.subplot(nx, ny, 9)
+    plt.imshow(df - dfest)
+    plt.title('NRMSE: %g' % normalized_root_mse(df, dfest))
     plt.axis('off')
 
     plt.show()

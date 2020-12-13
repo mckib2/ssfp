@@ -8,12 +8,10 @@ analysis of the difference between the two methods and truth.
 '''
 
 import numpy as np
-# from ellipsinator import fit_ellipse_halir as ellipse_fit
-# from ellipsinator import fit_ellipse_fitzgibon as ellipse_fit
 from ellipsinator import fast_guaranteed_ellipse_estimate as ellipse_fit
 
 
-def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
+def planet(I, alpha, TR, T1_guess=None, pcs=None, mask=None, pc_axis=-1, ret_all=False):
     '''Simultaneous T1, T2 mapping using phase‐cycled bSSFP.
 
     Parameters
@@ -29,6 +27,9 @@ def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
     T1_guess : float, optional
         Estimate of expected T1 value (in sec). If None, 1 sec
         is used as the default.
+    pcs : array_like, optional
+        The RF phase-cycle increments used.  If `None`,
+        evenly spaced phase-cycles are assumed on [0, 2pi).
     mask : array_like or None, optional
         Which pixels of I to reconstruct.  If None, the mask
         reconstructs each pixel that has nonzero PC data.
@@ -45,7 +46,8 @@ def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
         Estimate of T1 values (in sec).
     T2 : array_like
         Estimate of T2 values (in sec).
-
+    df : array_like
+        Estimate of off-resonance (in Hz).
     phi : array_like, optional
     Xc : array_like, optional
     Yc : array_like, optional
@@ -72,6 +74,11 @@ def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
     I = np.moveaxis(I, pc_axis, -1)
     npcs = I.shape[-1]
     sh = I.shape[:-1]
+
+    if pcs is None:
+        pcs = np.linspace(0, 2*np.pi, npcs, endpoint=False)
+    else:
+        assert len(pcs) == npcs, "pcs and data must match!"
 
     # alpha can either be a scalar or array
     # Choose an intial estimate for T1
@@ -170,34 +177,66 @@ def planet(I, alpha, TR, T1_guess=None, mask=None, pc_axis=-1, ret_all=False):
     T1[recon_idx] = -TR/np.log(
         ((a*(1 + calpha - ab*calpha) - b)/(a*(1 + calpha - ab) - b*calpha)))
 
-    if ret_all:
-        # Pack the rest of the result matrices
-        Phimap = np.zeros(np.prod(sh))
-        Phimap[recon_idx] = phi
-        Xcmap = np.zeros(np.prod(sh))
-        Xcmap[recon_idx] = Xc
-        Ycmap = np.zeros(np.prod(sh))
-        Ycmap[recon_idx] = Yc
-        Amap = np.zeros(np.prod(sh))
-        Amap[recon_idx] = a
-        Bmap = np.zeros(np.prod(sh))
-        Bmap[recon_idx] = b
+    # compute off-resonance estimates
+    # TODO: can probably do better than computing every pixel
+    Phimap = np.zeros(np.prod(sh))
+    Phimap[recon_idx] = phi
+    Phimap = np.reshape(Phimap, sh)
+    Xcmap = np.zeros(np.prod(sh))
+    Xcmap[recon_idx] = Xc
+    Xcmap = np.reshape(Xcmap, sh)
+    Ycmap = np.zeros(np.prod(sh))
+    Ycmap[recon_idx] = Yc
+    Ycmap = np.reshape(Ycmap, sh)
+    Amap = np.zeros(np.prod(sh))
+    Amap[recon_idx] = a
+    Amap = np.reshape(Amap, sh)
+    Bmap = np.zeros(np.prod(sh))
+    Bmap[recon_idx] = b
+    Bmap = np.reshape(Bmap, sh)
 
+    # Case FA > FAe
+    c = np.cos(Phimap)[..., None]
+    s = np.sin(Phimap)[..., None]
+    Xn = I.real*c + I.imag*s
+    Yn = I.imag*c - I.real*s
+    Coef = (Amap - Bmap)/(Amap*np.sqrt(1 - Bmap**2))  # Coef=A/B
+    TanT = Coef[..., None]*(Yn - Ycmap[..., None])/(Xn - Xcmap[..., None])
+    T = np.arctan(TanT)  # defined on [-pi/2, pi/2]
+    # unwrapping of T(k) to [-pi,pi]
+    idx0 = Xn < Xcmap[..., None]
+    idx_greater = np.logical_and(idx0, (Yn - Ycmap[..., None]) >= 0)
+    # T[idx_greater] = np.pi - T
+    np.putmask(T, idx_greater, np.pi - T[idx_greater])
+    idx_lesser = np.logical_and(idx0, (Yn - Ycmap[..., None]) < 0)
+    # T[idx_lesser] = -1*np.pi + T
+    np.putmask(T, idx_lesser, -1*np.pi + T[idx_lesser])
+    CosT = np.cos(T)
+    b = (CosT - Bmap[..., None])/(Bmap[..., None]*CosT - 1)
+    A = np.vstack((np.cos(pcs), np.sin(pcs))).T
+    print(A.shape, b.shape)
+    x = np.linalg.lstsq(A, np.reshape(b, (-1, npcs)).T, rcond=None)[0]
+    print(x.shape)
+    df = -1*np.arctan2(x[1, :], x[0, :])/(2*np.pi*TR)
+
+    if ret_all:
         return(
             np.reshape(Mmap, sh),
             np.reshape(T1, sh),
             np.reshape(T2, sh),
-            np.reshape(Phimap, sh),
-            np.reshape(Amap, sh),
-            np.reshape(Bmap, sh),
-            np.reshape(Xcmap, sh),
-            np.reshape(Ycmap, sh),
+            np.reshape(df, sh),
+            Phimap,
+            Xcmap,
+            Ycmap,
+            Amap,
+            Bmap,
         )
 
     return (
         np.reshape(Mmap, sh),
         np.reshape(T1, sh),
         np.reshape(T2, sh),
+        np.reshape(df, sh),
     )
 
 
