@@ -22,11 +22,8 @@ if __name__ == '__main__':
     df, _ = np.meshgrid(
         np.linspace(-1/TR, 1/TR, N),
         np.linspace(-1/TR, 1/TR, N))
-    sig = np.empty((npcs,) + T1.shape, dtype='complex')
-    for sl in range(nslices):
-        sig[..., sl] = bssfp(
-            T1[..., sl], T2[..., sl], TR, alpha, field_map=df,
-            phase_cyc=pcs, M0=M0[..., sl])
+    sig = bssfp(T1, T2, TR, alpha, field_map=df[..., None],
+                phase_cyc=pcs[None, None, None, :], M0=M0)
 
     # Do T1, T2 mapping for each pixel
     mask = np.abs(M0) > 1e-8
@@ -34,11 +31,11 @@ if __name__ == '__main__':
     # Make it noisy
     np.random.seed(0)
     sig += 1e-5*(np.random.normal(0, 1, sig.shape) +
-                 1j*np.random.normal(0, 1, sig.shape))*mask
+                 1j*np.random.normal(0, 1, sig.shape))*mask[..., None]
 
     # Do the thing
     t0 = perf_counter()
-    Mmap, T1est, T2est, dfest = planet(sig, alpha, TR, mask=mask, pc_axis=0)
+    Mmap, T1est, T2est, dfest = planet(sig, alpha, TR, mask=mask, pc_axis=-1)
     print('Took %g sec to run PLANET' % (perf_counter() - t0))
 
     # Look at a single slice

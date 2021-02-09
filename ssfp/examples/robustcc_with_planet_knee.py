@@ -37,7 +37,7 @@ if __name__ == '__main__':
     mask = gs > thresh
 
     # PLANET
-    _Meff, T1map, T2map = planet(res_rcc_simple, alpha, TR, T1_guess=1, mask=mask)
+    _Meff, T1map, T2map, _df = planet(res_rcc_simple, alpha, TR, T1_guess=1, mask=mask)
 
     # Stop timer
     print('Recon took %g sec' % (time() - t0))

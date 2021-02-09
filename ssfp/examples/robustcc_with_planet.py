@@ -41,13 +41,10 @@ if __name__ == '__main__':
         np.linspace(-1/TR, 1/TR, N))
 
     # Simulate the bSSFP acquisition
-    data = np.empty((N, N, npcs, ncoils), dtype=np.complex64)
-    for ii in range(ncoils):
-        res = bssfp(
-            T1, T2, TR=TR, alpha=alpha, field_map=df, phase_cyc=pcs,
-            M0=M0, delta_cs=0, phi_rf=np.angle(mps[None, ..., ii]),
-            phi_edd=0, phi_drift=0, target_pc_axis=-1)
-        data[..., ii] = np.abs(mps[..., None, ii])*res
+    data = np.abs(mps[..., None, :])*bssfp(
+        T1, T2, TR=TR, alpha=alpha, field_map=df,
+        phase_cyc=pcs[None, None, :], M0=M0,
+        phi_rf=np.angle(mps[..., None, :]))
 
     # Add noise
     sigma = 1e-7
@@ -62,7 +59,7 @@ if __name__ == '__main__':
 
     # PLANET
     mask = np.abs(M0) > 1e-8
-    _Meff, T1map, T2map = planet(res_rcc_simple, alpha, TR, T1_guess=1, mask=mask, pc_axis=-1)
+    _Meff, T1map, T2map, _df = planet(res_rcc_simple, alpha, TR, T1_guess=1, mask=mask, pc_axis=-1)
 
     # Stop timer
     print('Recon took %g sec' % (time() - t0))

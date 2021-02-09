@@ -65,7 +65,7 @@ phase-cycled data.  Call like this:
     from ssfp import planet
 
     # For a single pixel:
-    Meff, T1, T2 = planet(
+    Meff, T1, T2, df = planet(
         phased_cycled_pixels, alpha, TR, T1_guess,
         pcs=np.deg2rad([0, 90, 180, 270, etc...]))
 
@@ -96,6 +96,11 @@ Robust coil combination can be called like this:
     coil_combined = robustcc(data, pc_axis=-2, coil_axis=-1)
 
     # see ssfp.examples.basic_robustcc for more usage examples
+
+# Changelog
+
+- 1.0.0: `bssfp()` function overhaul to allow arbitrarily dimensioned
+  input arrays or scalars and removes the `target_pc_axis` argument.
 
 References
 ==========

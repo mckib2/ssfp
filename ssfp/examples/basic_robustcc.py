@@ -40,13 +40,9 @@ if __name__ == '__main__':
 
     # Generate coil images
     csm = _gaussian_csm(N, N, nc)
-    data = np.empty((N, N, npcs, nc), dtype=np.complex64)
-    for ii in range(nc):
-        res = bssfp(
-            T1, T2, TR=TR, alpha=alpha, field_map=df, phase_cyc=pcs,
-            M0=M0, delta_cs=0, phi_rf=np.angle(csm[None, ..., ii]),
-            phi_edd=0, phi_drift=0, target_pc_axis=-1)
-        data[..., ii] = np.abs(csm[..., None, ii])*res
+    data = np.abs(csm[..., None, :])*bssfp(
+        T1, T2, TR, alpha, field_map=df, phase_cyc=pcs[None, None, :, None],
+        M0=M0, phi_rf=np.angle(csm[..., None, :]))
 
     # Do coil-by-coil recon
     res_cbc = np.empty((N, N, nc), dtype=np.complex64)
