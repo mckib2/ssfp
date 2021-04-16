@@ -10,11 +10,13 @@ from ssfp import bssfp, gs_recon, fimtre, planet
 
 if __name__ == '__main__':
 
-    fimtre_results = 0
-    planet_results = 1
+    fimtre_results = 1
+    planet_results = 0
+    sigma = 4e-5
+    resid_mult = 10
     
     # Shepp-Logan
-    N, nslices = 128, 1
+    N, nslices = 256, 1
     M0, T1, T2 = shepp_logan((N, N, nslices), MR=True, zlims=(-.25, 0))
     M0, T1, T2 = np.squeeze(M0), np.squeeze(T1), np.squeeze(T2)
     mask = np.abs(M0) > 1e-8
@@ -57,7 +59,6 @@ if __name__ == '__main__':
     
     # Make it noisy
     np.random.seed(0)
-    sigma = 3e-5
     if fimtre_results:
         I0_hi += sigma*(np.random.normal(0, 1, I0_hi.shape) +
                         1j*np.random.normal(0, 1, I0_hi.shape))
@@ -131,11 +132,11 @@ if __name__ == '__main__':
     def _diffim(est, idx0):
         global _wrote_diff_hdr
         plt.subplot(nx, ny, idx0)
-        plt.imshow(np.log(np.abs(df - est)), **opts)
+        plt.imshow(np.abs(df - est)*resid_mult, **opts)
         plt.annotate(f'NRMSE: {normalized_root_mse(df, est):g}', (.05, .05), xycoords='axes fraction', color='k')
         plt.tick_params(axis='both', labelsize=0, length=0)
         if not _wrote_diff_hdr:
-            plt.title('Log Residual')
+            plt.title(f'Residual (x{resid_mult})')
             _wrote_diff_hdr = True
         idx0 += 2
         return idx0
