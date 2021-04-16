@@ -25,6 +25,7 @@ def _fimtre6(I0, I1, TR0, TR1, rad):
     #     (x, y) is now GS(I1)
 
     r2 = np.real(np.conj(ctr0)*ctr0)
+    I1 = I1*1e6  # scale I1 up to make sure endpoints don't miss ctr0 when rotating
     m = (I1[..., 0].imag - I1[..., 1].imag)/(I1[..., 0].real - I1[..., 1].real)
     m2 = m*m
     # avg b = ((y_0 - mx_0) + (y_1 - mx_1))/2
