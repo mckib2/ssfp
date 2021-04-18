@@ -1,11 +1,10 @@
 '''FIMTRE: FItting Multi-TR Ellipses.'''
 
 import numpy as np
+from ssfp import bssfp, gs_recon
 
-from ssfp import gs_recon
 
-
-def _fimtre6(I0, I1, TR0, TR1, rad):
+def _fimtre6(I0, I1, TR0, TR1):
     ctr0 = gs_recon(I0, pc_axis=-1, second_pass=False)
 
     # find where circle intersects line, this is ctr1 (or there-abouts)
@@ -42,7 +41,7 @@ def _fimtre6(I0, I1, TR0, TR1, rad):
     return np.angle(ctr0*(x - 1j*y))
 
 
-def _fimtre8(I0, I1, TR0, TR1, rad):
+def _fimtre8(I0, I1, TR0, TR1):
     ctr0 = gs_recon(I0, pc_axis=-1, second_pass=False)
     ctr1 = gs_recon(I1, pc_axis=-1, second_pass=False)
     return np.angle(ctr0*np.conj(ctr1))
@@ -79,16 +78,15 @@ def fimtre(I0: np.array, I1: np.array, TR0: float, TR1: float, pc_axis: int=-1, 
     -----
     Uses 6 or 8 phase-cycled images to estimate off-resonance.
     '''
-    assert TR0 < TR1
+    assert np.all(TR0 < TR1)
     I0 = np.moveaxis(np.atleast_2d(I0), pc_axis, -1)
     I1 = np.moveaxis(np.atleast_2d(I1), pc_axis, -1)
     assert I0.shape[-1] == 4
     assert I1.shape[-1] in {2, 4}
     if I1.shape[-1] == 4:
-        theta = _fimtre8(I0, I1, TR0, TR1, rad=rad)
+        theta = _fimtre8(I0, I1, TR0, TR1)
     else:
-        theta = _fimtre6(I0, I1, TR0, TR1, rad=rad)
+        theta = _fimtre6(I0, I1, TR0, TR1)
     if rad:
         return theta
     return np.array(1/(TR1/TR0 - 1)*theta/(np.pi*TR0))
-
