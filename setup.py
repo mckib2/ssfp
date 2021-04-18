@@ -5,7 +5,7 @@ from setuptools import find_packages
 
 setup(
     name='ssfp',
-    version='1.0.0',
+    version='1.1.0',
     author='Nicholas McKibben',
     author_email='nicholas.bgp@gmail.com',
     packages=find_packages(),

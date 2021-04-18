@@ -51,48 +51,49 @@ if __name__ == '__main__':
     dfest = unwrap_phase(dfest*2*np.pi*TR)/(2*np.pi*TR)
 
     nx, ny = 3, 3
+    opts = {'cmap': 'gray'}
     plt.subplot(nx, ny, 1)
-    plt.imshow(T1*mask)
+    plt.imshow(T1*mask, **opts)
     plt.title('T1 Truth')
     plt.axis('off')
 
     plt.subplot(nx, ny, 2)
-    plt.imshow(T1est)
+    plt.imshow(T1est, **opts)
     plt.title('T1 est')
     plt.axis('off')
 
     plt.subplot(nx, ny, 3)
-    plt.imshow(T1*mask - T1est)
+    plt.imshow(T1*mask - T1est, **opts)
     plt.title('NRMSE: %g' % normalized_root_mse(T1, T1est))
     plt.axis('off')
 
     plt.subplot(nx, ny, 4)
-    plt.imshow(T2*mask)
+    plt.imshow(T2*mask, **opts)
     plt.title('T2 Truth')
     plt.axis('off')
 
     plt.subplot(nx, ny, 5)
-    plt.imshow(T2est)
+    plt.imshow(T2est, **opts)
     plt.title('T2 est')
     plt.axis('off')
 
     plt.subplot(nx, ny, 6)
-    plt.imshow(T2*mask - T2est)
+    plt.imshow(T2*mask - T2est, **opts)
     plt.title('NRMSE: %g' % normalized_root_mse(T2, T2est))
     plt.axis('off')
 
     plt.subplot(nx, ny, 7)
-    plt.imshow(df*mask)
+    plt.imshow(df*mask, **opts)
     plt.title('df Truth')
     plt.axis('off')
 
     plt.subplot(nx, ny, 8)
-    plt.imshow(dfest)
+    plt.imshow(dfest, **opts)
     plt.title('df est')
     plt.axis('off')
 
     plt.subplot(nx, ny, 9)
-    plt.imshow(df*mask - dfest)
+    plt.imshow(df*mask - dfest, **opts)
     plt.title('NRMSE: %g' % normalized_root_mse(df*mask, dfest))
     plt.axis('off')
 
