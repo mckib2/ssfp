@@ -99,7 +99,8 @@ Robust coil combination can be called like this:
 
     # see ssfp.examples.basic_robustcc for more usage examples
 
-# Changelog
+Changelog
+=========
 
 - 1.2.0: setup.py -> pyproject.toml; GPL -> MIT licence; general maintenance;
   dependency version bumps; type annotations; divide-by-zero fixes
