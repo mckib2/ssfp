@@ -4,7 +4,7 @@ version = "1.2.0"
 description = "SSFP simulation"
 readme = "README.rst"
 requires-python = ">=3.8"
-license = {file = "LICENSE.txt"}
+license = {file = "LICENSE"}
 authors = [
     {name = "Nicholas McKibben", email = "nicholas.bgp@gmail.com"}
 ]
@@ -22,3 +22,10 @@ dependencies = [
 
 [project.urls]
 "Homepage" = "https://github.com/mckib2/ssfp"
+
+[build-system]
+requires = ["build", "setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.distutils.bdist_wheel]
+universal = true
