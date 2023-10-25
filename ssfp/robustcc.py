@@ -1,11 +1,12 @@
-'''Robust coil combination for bSSFP.'''
+"""Robust coil combination for bSSFP."""
 
 import numpy as np
 from tqdm import tqdm
 
-def robustcc(
-        data, method='simple', mask=None, coil_axis=-1, pc_axis=-2):
-    '''Robust elliptcal-model-preserving coil combination for bSSFP.
+
+def robustcc(data: np.ndarray, method: str='simple', mask: np.ndarray=None, coil_axis: int=-1,
+             pc_axis: int=-2) -> np.array:
+    """Robust elliptical-model-preserving coil combination for bSSFP.
 
     Parameters
     ----------
@@ -44,7 +45,7 @@ def robustcc(
     .. [2] Xiang, Qing‐San, and Michael N. Hoff. "Banding artifact
            removal for bSSFP imaging with an elliptical signal model."
            Magnetic resonance in medicine 71.3 (2014): 927-933.
-    '''
+    """
 
     # Put coil and phase-cycle axes where we expect them
     data = np.moveaxis(data, (coil_axis, pc_axis), (-1, -2))
@@ -65,8 +66,9 @@ def robustcc(
     return np.moveaxis(
         mag*np.exp(1j*phase), (-1, -2), (coil_axis, pc_axis))
 
+
 def _simple_phase(data):
-    '''Simple strategy: choose phase from best coil ellipse.'''
+    """Simple strategy: choose phase from best coil ellipse."""
 
     # Assume the best coil is the one with max median value
     idx = np.argmax(
@@ -74,8 +76,9 @@ def _simple_phase(data):
     return np.take_along_axis(
         np.angle(data), idx[..., None], axis=-1).squeeze()
 
+
 def _full_phase(data, mask=None):
-    '''Do pixel-by-pixel ellipse registration.'''
+    """Do pixel-by-pixel ellipse registration."""
 
     # Worst case is to do all pixels:
     if mask is None:
@@ -91,8 +94,7 @@ def _full_phase(data, mask=None):
         # Register all coil ellipses to a single reference
         coil_ellipses = data[tuple(idx) + (slice(None), slice(None))]
 
-        # Take reference ellipse to be the one with greatest
-        # median value
+        # Take reference ellipse to be the one with the greatest median value
         ref_idx = np.argmax(np.median(np.abs(
             coil_ellipses), axis=-1, keepdims=True), axis=-1)
         ref = np.take_along_axis(
@@ -101,13 +103,13 @@ def _full_phase(data, mask=None):
         # Do coil by coil registration
         reg_ellipses = np.empty(
             coil_ellipses.shape, dtype=coil_ellipses.dtype)
-        W = np.empty(coil_ellipses.shape[-1]) # weights
+        W = np.empty(coil_ellipses.shape[-1])  # weights
         for cc in range(coil_ellipses.shape[-1]):
             T = np.linalg.lstsq(
                 coil_ellipses[..., cc][:, None],
                 ref, rcond=None)[0]
-            W[cc] = np.abs(T)**2 # save the weights
-            T = np.exp(1j*np.angle(T)) # just rotate, no scaling
+            W[cc] = np.abs(T)**2  # save the weights
+            T = np.exp(1j*np.angle(T))  # just rotate, no scaling
             reg_ellipses[..., cc] = T*coil_ellipses[..., cc]
 
         # Take the weighted average to the composite ellipse
@@ -116,8 +118,9 @@ def _full_phase(data, mask=None):
 
     # make sure undefined values are set to 0; we have to do this
     # since we allocated with np.empty
-    phase[~mask] = 0 # pylint: disable=E1130
+    phase[~mask] = 0  # pylint: disable=E1130
     return phase
+
 
 if __name__ == '__main__':
     pass

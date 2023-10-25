@@ -1,4 +1,4 @@
-'''Picture how FIMTRE works.'''
+"""Picture how FIMTRE works."""
 
 import numpy as np
 import matplotlib.pyplot as plt

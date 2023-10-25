@@ -1,4 +1,4 @@
-'''Utility functions.'''
+"""Utility functions."""
 
 import pathlib
 import urllib.request
@@ -9,8 +9,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-def ernst(TR, T1):
-    '''Computes the Ernst angle.
+
+def ernst(TR: float, T1: np.ndarray) -> np.array:
+    """Computes the Ernst angle.
 
     Parameters
     ----------
@@ -32,7 +33,7 @@ def ernst(TR, T1):
     ----------
     .. [1] Notes from Bernstein, M. A., King, K. F., & Zhou, X. J.
            (2004). Handbook of MRI pulse sequences. Elsevier.
-    '''
+    """
 
     # Don't divide by zero!
     alpha = np.zeros(T1.shape)
@@ -40,8 +41,9 @@ def ernst(TR, T1):
     alpha[idx] = np.arccos(-TR/T1[idx])
     return alpha
 
-def download_file(address, filename, force=False):
-    '''Download a file into data folder.
+
+def download_file(address: str, filename: str, force: bool=False) -> str:
+    """Download a file into data folder.
 
     Parameters
     ----------
@@ -56,7 +58,7 @@ def download_file(address, filename, force=False):
     -------
     path : str
         Local path to downloaded file.
-    '''
+    """
 
     # Make sure destination directory exists
     dest = pathlib.Path('data/')
@@ -69,6 +71,7 @@ def download_file(address, filename, force=False):
 
     # Else, get file from interwebs
     pbar = None
+
     def _progress(_num_blocks, block_size, file_size):
         nonlocal pbar
         if pbar is None:
@@ -79,11 +82,13 @@ def download_file(address, filename, force=False):
 
     _local_filename, _ = urllib.request.urlretrieve(
         address, str(dest / filename), _progress)
-    pbar.close()
+    if pbar is not None:
+        pbar.close()
     return str(dest / filename)
 
-class IndexTracker(object):
-    '''Use scroll wheel event to cycle through slices.'''
+
+class IndexTracker:
+    """Use scroll wheel event to cycle through slices."""
     def __init__(self, ax, X):
         self.ax = ax
         ax.set_title('use scroll wheel to navigate slices')
@@ -98,7 +103,7 @@ class IndexTracker(object):
         self.update()
 
     def onscroll(self, event):
-        '''Trigger scrolling event.'''
+        """Trigger scrolling event."""
         # print("%s %s" % (event.button, event.step))
         if event.button == 'up':
             self.ind = (self.ind + 1) % self.slices
@@ -107,13 +112,14 @@ class IndexTracker(object):
         self.update()
 
     def update(self):
-        '''Load new slice.'''
+        """Load new slice."""
         self.im.set_data(self.X[:, :, self.ind])
         self.ax.set_ylabel('slice %s' % self.ind)
         self.im.axes.figure.canvas.draw()
 
-def choose_cntr(im, slice_axis=-1):
-    '''Graphically choose point '''
+
+def choose_cntr(im: np.ndarray, slice_axis: int=-1):
+    """Graphically choose point """
 
     fig, ax = plt.subplots(1, 1)
     tracker = IndexTracker(ax, np.moveaxis(im, slice_axis, -1))

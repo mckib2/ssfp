@@ -1,11 +1,11 @@
-'''Basic usage of bSSFP.'''
+"""Basic usage of bSSFP."""
 
 import numpy as np
 import matplotlib.pyplot as plt
 from ssfp import bssfp
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     M0, T1, T2 = 1, 1, .5
     TR, alpha = 3e-3, np.deg2rad(30)
     field_map = 1/(2*TR)
@@ -16,12 +16,12 @@ if __name__ == '__main__':
 
     fig, ax1 = plt.subplots()
     dpcs = np.rad2deg(pcs)
-    ax1.plot(dpcs, np.abs(sig))
+    ax1.plot(dpcs, np.abs(sig), 'k-')
     ax1.set_ylabel('Magnitude (a.u.)')
     ax1.set_xlabel('Phase Cycle (in deg)')
 
     ax2 = ax1.twinx()
-    ax2.plot(dpcs, np.angle(sig), '--')
+    ax2.plot(dpcs, np.angle(sig), 'k--')
     ax2.set_ylabel('Phase (rad)')
 
     plt.title('bSSFP Spectrum')

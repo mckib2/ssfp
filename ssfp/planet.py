@@ -1,18 +1,23 @@
-'''Python implementation of PLANET algorithm.
+"""Python implementation of PLANET algorithm.
 
 Notes
 -----
 Halir ellipse performs much faster! Somewhat different results though
 between fast guaranteed and Halir -- it would be interesting to do an
 analysis of the difference between the two methods and truth.
-'''
+"""
+
+from typing import Union
 
 import numpy as np
 from ellipsinator import fast_guaranteed_ellipse_estimate as ellipse_fit
 
+flt_or_array_like = Union[float, np.ndarray]
 
-def planet(I, alpha, TR, T1_guess=None, pcs=None, mask=None, pc_axis=-1, ret_all=False):
-    '''Simultaneous T1, T2 mapping using phase‐cycled bSSFP.
+
+def planet(I: np.ndarray, alpha: flt_or_array_like, TR: float, T1_guess: float=None, pcs: np.ndarray=None,
+           mask: np.ndarray=None, pc_axis: int=-1, ret_all: bool=False):
+    """Simultaneous T1, T2 mapping using phase‐cycled bSSFP.
 
     Parameters
     ----------
@@ -69,7 +74,7 @@ def planet(I, alpha, TR, T1_guess=None, pcs=None, mask=None, pc_axis=-1, ret_all
            approach for simultaneous T1 and T2 mapping using
            phase‐cycled balanced steady‐state free precession."
            Magnetic resonance in medicine 79.2 (2018): 711-722.
-    '''
+    """
     # Phase cycles to the back
     I = np.moveaxis(I, pc_axis, -1)
     npcs = I.shape[-1]
@@ -81,9 +86,9 @@ def planet(I, alpha, TR, T1_guess=None, pcs=None, mask=None, pc_axis=-1, ret_all
         assert len(pcs) == npcs, "pcs and data must match!"
 
     # alpha can either be a scalar or array
-    # Choose an intial estimate for T1
+    # Choose an initial estimate for T1
     if T1_guess is None:
-        T1_guess = 1  # 1sec arbitrariliy
+        T1_guess = 1  # 1sec arbitrarily
 
     # Fit all ellipses that are nonzero
     if mask is None:
@@ -209,7 +214,7 @@ def planet(I, alpha, TR, T1_guess=None, pcs=None, mask=None, pc_axis=-1, ret_all
         Bmap = np.zeros(np.prod(sh))
         Bmap[recon_idx] = b
 
-        return(
+        return (
             np.reshape(Mmap, sh),
             np.reshape(T1, sh),
             np.reshape(T2, sh),

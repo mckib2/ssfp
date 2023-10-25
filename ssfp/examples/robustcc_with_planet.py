@@ -1,4 +1,4 @@
-'''Show post-processing of data combined using robustcc.'''
+"""Show post-processing of data combined using robustcc."""
 
 from time import time
 
@@ -9,8 +9,9 @@ from phantominator import shepp_logan
 
 from ssfp import bssfp, robustcc, planet
 
+
 def _gaussian_csm(sx, sy, ncoil, sigma=1):
-    '''Simple coil model for demo.'''
+    """Simple coil model for demo."""
     X, Y = np.meshgrid(
         np.linspace(-1, 1, sx), np.linspace(-1, 1, sy))
     pos = np.stack((X[..., None], Y[..., None]), axis=-1)
@@ -21,8 +22,8 @@ def _gaussian_csm(sx, sy, ncoil, sigma=1):
         csm[..., ii] = multivariate_normal(mu, cov).pdf(pos)
     return csm + 1j*csm
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     # Sim params
     N, ncoils, npcs = 256, 64, 8
     TR, alpha = 4e-3, np.deg2rad(120)
@@ -35,7 +36,7 @@ if __name__ == '__main__':
     M0, T1, T2 = shepp_logan((N, N, 1), MR=True, zlims=(-.25, .25))
     M0, T1, T2 = np.squeeze(M0), np.squeeze(T1), np.squeeze(T2)
 
-    # Linear off resonance -- exagerate off-resonance effects
+    # Linear off resonance -- exaggerate off-resonance effects
     df, _ = np.meshgrid(
         np.linspace(-1/TR, 1/TR, N),
         np.linspace(-1/TR, 1/TR, N))

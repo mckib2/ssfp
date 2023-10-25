@@ -1,4 +1,4 @@
-'''Compare bSSFP and GRE constrasts.'''
+"""Compare bSSFP and GRE contrasts."""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,8 +6,8 @@ from phantominator import shepp_logan
 
 from ssfp import bssfp, spoiled_gre
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     N = 128
     M0, T1, T2 = shepp_logan((N, N, 1), MR=True, zlims=(-.25, -.25))
     M0, T1, T2 = M0[..., 0], T1[..., 0], T2[..., 0]

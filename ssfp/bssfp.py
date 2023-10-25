@@ -1,15 +1,20 @@
-'''Balanced SSFP simulation.'''
+"""Balanced SSFP simulation."""
+
+from typing import Union
 
 import numpy as np
 
 
+flt_or_array_like = Union[float, np.ndarray]
+
+
 def _isarray(arr):
-    '''Helper function to determine if arr is a numpy array.'''
+    """Helper function to determine if arr is a numpy array."""
     return isinstance(arr, np.ndarray)
 
 
 def _get_theta(TR, field_map, phase_cyc, delta_cs):
-    '''Get theta, spin phase per repetition time, given off-resonance.
+    """Get theta, spin phase per repetition time, given off-resonance.
 
     Parameters
     ----------
@@ -39,13 +44,12 @@ def _get_theta(TR, field_map, phase_cyc, delta_cs):
            imaging." Magnetic Resonance in Medicine: An Official
            Journal of the International Society for Magnetic
            Resonance in Medicine 46.1 (2001): 149-158.
-    '''
+    """
     return 2*np.pi*(delta_cs + field_map)*TR + phase_cyc
 
 
-def _get_bssfp_phase(
-        T2, TR, field_map, delta_cs, phi_rf, phi_edd, phi_drift):
-    '''Additional bSSFP phase factors.
+def _get_bssfp_phase(T2, TR, field_map, delta_cs, phi_rf, phi_edd, phi_drift):
+    """Additional bSSFP phase factors.
 
     Parameters
     ----------
@@ -76,7 +80,7 @@ def _get_bssfp_phase(
 
     We use a positive exponent, exp(i phi), as in Hoff and Taylor
     MATLAB implementations.  This phase factor is also positive in
-    equaiton [5] of [3]_.
+    equation [5] of [3]_.
 
     In Hoff's paper the equation is not explicitly given for phi, so
     we implement equation [5] that gives more detailed terms, found
@@ -94,18 +98,20 @@ def _get_bssfp_phase(
            Resonance in Medicine: An Official Journal of the
            International Society for Magnetic Resonance in Medicine
            49.2 (2003): 395-397.
-    '''
+    """
     TE = TR/2  # assume bSSFP
     phi = 2*np.pi*(
         delta_cs + field_map)*TE + phi_rf + phi_edd + phi_drift
 
-    # TODO: there is a divide-by-zero risk here
-    return np.exp(1j*phi)*np.exp(-1*TE/T2)
+    # divide-by-zero risk
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.exp(1j*phi)*np.exp(-1*np.nan_to_num(TE/T2))
 
 
-def bssfp(T1, T2, TR, alpha, field_map=0, phase_cyc=0, M0=1,
-          delta_cs=0, phi_rf=0, phi_edd=0, phi_drift=0):
-    r'''bSSFP transverse signal at time TE after excitation.
+def bssfp(T1: flt_or_array_like, T2: flt_or_array_like, TR: float, alpha: flt_or_array_like,
+          field_map: flt_or_array_like=0, phase_cyc: flt_or_array_like=0, M0: flt_or_array_like=1, delta_cs: float=0,
+          phi_rf: float=0, phi_edd: float=0, phi_drift: float=0):
+    r"""bSSFP transverse signal at time TE after excitation.
 
     Parameters
     ----------
@@ -132,9 +138,6 @@ def bssfp(T1, T2, TR, alpha, field_map=0, phase_cyc=0, M0=1,
         phase errors due to eddy current effects (in rad).
     phi_drift : float, optional
         phase errors due to B0 drift (in rad).
-    target_pc_axis : int, optional
-        Where the new phase-cycle dimension should be inserted.  Only
-        used if phase_cyc is an array.
 
     Returns
     -------
@@ -181,7 +184,7 @@ def bssfp(T1, T2, TR, alpha, field_map=0, phase_cyc=0, M0=1,
 
     .. [5] Freeman R, Hill H. Phase and intensity anomalies in
            fourier transform NMR. J Magn Reson 1971;4:366–383.
-    '''
+    """
     # Pass through the arguments so we can refer to them as
     # a dictionary:
     return _bssfp_impl(
@@ -216,9 +219,10 @@ def _bssfp_impl(**kwargs):
     # flip the signs
     kwargs['phase_cyc'] = -1*kwargs['phase_cyc']
 
-    # TODO: there is a divide-by-zero risk here
-    E1 = np.exp(-1*kwargs['TR']/kwargs['T1'])
-    E2 = np.exp(-1*kwargs['TR']/kwargs['T2'])
+    # divide-by-zero risk
+    with np.errstate(divide="ignore", invalid="ignore"):
+        E1 = np.exp(-1*np.nan_to_num(kwargs['TR']/kwargs['T1']))
+        E2 = np.exp(-1*np.nan_to_num(kwargs['TR']/kwargs['T2']))
 
     # Precompute theta and some cos, sin
     theta = _get_theta(kwargs['TR'], kwargs['field_map'],

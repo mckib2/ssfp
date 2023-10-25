@@ -1,4 +1,4 @@
-'''Show basic usage of GS solution.'''
+"""Show basic usage of GS solution."""
 
 from time import perf_counter
 
@@ -11,7 +11,6 @@ from ssfp import bssfp, planet
 
 
 if __name__ == '__main__':
-
     # Shepp-Logan
     N, nslices, npcs = 128, 2, 8  # 2 slices just to show we can
     M0, T1, T2 = shepp_logan((N, N, nslices), MR=True, zlims=(-.25, 0))

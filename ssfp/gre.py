@@ -1,13 +1,19 @@
-'''GRE simulation.'''
+"""GRE simulation."""
 
 import logging
+from typing import Union
 
 import numpy as np
 
-from .utils import ernst
+from ssfp.utils import ernst
 
-def spoiled_gre(T1, T2star, TR, TE, alpha=None, M0=1):
-    '''Spoiled, steady state GRE contrast simulation.
+
+flt_or_array_like = Union[float, np.ndarray]
+
+
+def spoiled_gre(T1: np.ndarray, T2star: np.ndarray, TR: float, TE: float, alpha: flt_or_array_like=None,
+                M0: np.ndarray=1):
+    """Spoiled, steady state GRE contrast simulation.
 
     Magnitude image simulations.
 
@@ -46,7 +52,7 @@ def spoiled_gre(T1, T2star, TR, TE, alpha=None, M0=1):
     ----------
     .. [1] Notes from Bernstein, M. A., King, K. F., & Zhou, X. J.
            (2004). Handbook of MRI pulse sequences. Elsevier.
-    '''
+    """
 
     if alpha is None:
         logging.warning(

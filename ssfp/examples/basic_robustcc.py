@@ -1,4 +1,4 @@
-'''Show basic usage of Robust coil combination for bSSFP.'''
+"""Show basic usage of Robust coil combination for bSSFP."""
 
 from time import time
 
@@ -9,8 +9,9 @@ from phantominator import shepp_logan
 
 from ssfp import bssfp, robustcc, gs_recon
 
+
 def _gaussian_csm(sx, sy, ncoil, sigma=1):
-    '''Simple coil model for demo.'''
+    """Simple coil model for demo."""
     X, Y = np.meshgrid(
         np.linspace(-1, 1, sx), np.linspace(-1, 1, sy))
     pos = np.stack((X[..., None], Y[..., None]), axis=-1)
@@ -21,10 +22,10 @@ def _gaussian_csm(sx, sy, ncoil, sigma=1):
         csm[..., ii] = multivariate_normal(mu, cov).pdf(pos)
     return csm + 1j*csm
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     # Coil combine params
-    include_full_robustcc = False # this might take a while to run
+    include_full_robustcc = True  # this might take a while to run
 
     # Sim params
     N, nc, npcs = 256, 8, 4

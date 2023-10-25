@@ -1,17 +1,15 @@
-'''Show post-processing of data combined using robustcc.'''
+"""Show post-processing of data combined using robustcc."""
 
 from time import time
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import multivariate_normal
 from skimage.filters import threshold_li
-from phantominator import shepp_logan
 
-from ssfp import bssfp, robustcc, gs_recon, planet
+from ssfp import robustcc, gs_recon, planet
+
 
 if __name__ == '__main__':
-
     # Load data
     data = np.load('/home/nicholas/Documents/research/ellipse_test/17.npy')
     data = data.transpose((0, 1, 3, 2))

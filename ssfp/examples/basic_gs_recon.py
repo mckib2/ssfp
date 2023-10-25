@@ -1,12 +1,12 @@
-'''Show basic usage of GS solution.'''
+"""Show basic usage of GS solution."""
 
 import numpy as np
 import matplotlib.pyplot as plt
 from phantominator import shepp_logan
 from ssfp import bssfp, gs_recon
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     # Shepp-Logan
     N = 128
     M0 = shepp_logan(N)
@@ -28,6 +28,7 @@ if __name__ == '__main__':
         plt.subplot(nx, ny, ii+1)
         plt.imshow(np.abs(sig[..., ii]))
         plt.title('%d deg PC' % (ii*90))
+        plt.tick_params(axis='both', labelsize=0, length=0)
     plt.show(block=False)
 
     # Dhow the recon
@@ -35,4 +36,5 @@ if __name__ == '__main__':
     plt.figure()
     plt.imshow(np.abs(recon))
     plt.title('GS Solution')
+    plt.tick_params(axis='both', labelsize=0, length=0)
     plt.show()

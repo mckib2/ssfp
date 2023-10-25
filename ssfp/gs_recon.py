@@ -1,12 +1,14 @@
-'''Geometric solution to the elliptical signal model.'''
+"""Geometric solution to the elliptical signal model."""
+
+from typing import Tuple, Union
 
 import numpy as np
 from skimage.util.shape import view_as_windows
 
-def gs_recon(
-        Is, pc_axis=0, isophase=np.pi, second_pass=True,
-        patch_size=None):
-    '''Full 2D Geometric Solution following Xiang, Hoff's 2014 paper.
+
+def gs_recon(Is: np.ndarray, pc_axis: int=0, isophase: float=np.pi, second_pass: bool=True,
+             patch_size: Tuple[int]=None):
+    """Full 2D Geometric Solution following Xiang, Hoff's 2014 paper.
 
     Parameters
     ----------
@@ -15,7 +17,7 @@ def gs_recon(
         (I1, I3) are phase-cycle pairs.
     pc_axis : int, optional
         Phase-cycle dimension, default is the first dimension.
-    isophase : float
+    isophase : float, optional
         Only neighbours with isophase max phase difference contribute.
     second_pass : bool, optional
         Compute the second pass solution, increasing SNR by sqrt(2).
@@ -33,7 +35,7 @@ def gs_recon(
     Notes
     -----
     `Is` is an array of 4 2D images: I0, I1, I2, and I3.  I0 and I2
-    make up the first phase-cycle pair, that is they are 180 degrees
+    make up the first phase-cycle pair, that is, they are 180 degrees
     phase-cycled relative to each other.  I1 and I3 are also
     phase-cycle pairs and must be different phase-cycles than either
     I0 or I2.  Relative phase-cycles are assumed as follows:
@@ -51,12 +53,12 @@ def gs_recon(
            removal for bSSFP imaging with an elliptical signal
            model." Magnetic resonance in medicine 71.3 (2014):
            927-933.
-    '''
+    """
 
     # Put the pc_axis first
     Is = np.moveaxis(Is, pc_axis, 0)
 
-    # Get direct geometric solution for demoduled M for all pixels
+    # Get direct geometric solution for demodulated M for all pixels
     Id = np.atleast_1d(_get_complex_cross_point(Is))
 
     # Get maximum pixel magnitudes for all input images
@@ -65,7 +67,7 @@ def gs_recon(
     # Compute complex sum
     CS = np.atleast_1d(np.mean(Is, axis=0))
 
-    # For each pixel, if the magnitude if greater than the maximum
+    # For each pixel, if the magnitude is greater than the maximum
     # magnitude of all four input images, then replace the pixel with
     # the CS solution.  This step regularizes the direct solution and
     # effectively removes all singularities
@@ -88,8 +90,9 @@ def gs_recon(
     # reduced noise
     return (Iw13 + Iw24)/2
 
+
 def _get_complex_cross_point(Is):
-    '''Find intersection of two lines connecting diagonal pairs.
+    """Find intersection of two lines connecting diagonal pairs.
 
     Parameters
     ----------
@@ -111,7 +114,7 @@ def _get_complex_cross_point(Is):
     cycling dtheta = (i-1)*pi/2 with 0 < i < 4.
 
     This is Equation [13] from [1]_.
-    '''
+    """
 
     x1, y1 = Is[0, ...].real, Is[0, ...].imag
     x2, y2 = Is[1, ...].real, Is[1, ...].imag
@@ -127,10 +130,10 @@ def _get_complex_cross_point(Is):
         x2*y4 - x4*y2)*(Is[0, ...] - Is[2, ...]))/den
     return M
 
-def _compute_Iw(
-        I0, I1, Id, patch_size=None, mode='constant', isophase=np.pi,
-        ret_weight=False):
-    '''Computes weighted sum of image pair (I0, I1).
+
+def _compute_Iw(I0, I1, Id, patch_size=None, mode='constant', isophase=np.pi,
+                ret_weight=False):
+    """Computes weighted sum of image pair (I0, I1).
 
     Parameters
     ----------
@@ -143,7 +146,7 @@ def _compute_Iw(
         result of regularized direct solution.
     patch_size : tuple, optional
         size of patches in pixels (x, y).  Defaults to (5, 5).
-    mode : {'contant', 'edge'}, optional
+    mode : {'constant', 'edge'}, optional
         mode of numpy.pad. Probably choose 'constant' or 'edge'.
     isophase : float, optional
         Only neighbours with isophase max phase difference contribute.
@@ -176,7 +179,7 @@ def _compute_Iw(
 
     This function implements Equations [14,18], or steps 4--5 from
     Fig. 2 in [1]_.
-    '''
+    """
 
     # Make sure we have a patch size
     if patch_size is None:
@@ -215,11 +218,12 @@ def _compute_Iw(
     # Find Iw, the weighted sum of image pair (I0,I1), equation [14]
     Iw = I0*weights + I1*(1 - weights)
     if ret_weight:
-        return(Iw, weights)
+        return Iw, weights
     return Iw
 
+
 def _mask_isophase(numerator_patches, patch_size, isophase):
-    '''Generate mask that chooses patch pixels that satisfy isophase.
+    """Generate mask that chooses patch pixels that satisfy isophase.
 
     Parameters
     ----------
@@ -235,7 +239,7 @@ def _mask_isophase(numerator_patches, patch_size, isophase):
         mask : array_like
             same size as numerator_patches, to be applied to
             numerator_patches and den_patches before summation.
-    '''
+    """
 
     # # Loop through each patch and zero out all the values not
     # mask = np.ones(num_patches.shape).astype(bool)

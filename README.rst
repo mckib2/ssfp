@@ -8,6 +8,8 @@ working with this wonderful pulse sequence.
 In this package:
 
 - bSSFP: `bssfp()`
+- FIMTRE: `fimtre()`
+- GRE: `gre()`
 - GS solution: `gs_recon()`
 - PLANET: `planet()`
 - 3D Region Growing Phase Correction: `rgphcorr3d()`
@@ -20,7 +22,7 @@ Should be as easy as:
 
 .. code-block:: bash
 
-    pip install ssfp
+    python -m pip install ssfp
 
 Usage
 =====
@@ -99,6 +101,8 @@ Robust coil combination can be called like this:
 
 # Changelog
 
+- 1.2.0: setup.py -> pyproject.toml; GPL -> MIT licence; general maintenance;
+  dependency version bumps; type annotations; divide-by-zero fixes
 - 1.0.0: `bssfp()` function overhaul to allow arbitrarily dimensioned
   input arrays or scalars and removes the `target_pc_axis` argument.
 

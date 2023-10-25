@@ -1,4 +1,4 @@
-'''Basic usage of region growing phase correction.'''
+"""Basic usage of region growing phase correction."""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,6 +6,7 @@ from scipy.io import loadmat
 
 from ssfp import rgphcorr3d
 from ssfp.utils import download_file
+
 
 if __name__ == '__main__':
 

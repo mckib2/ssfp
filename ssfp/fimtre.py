@@ -1,7 +1,7 @@
-'''FIMTRE: FItting Multi-TR Ellipses.'''
+"""FIMTRE: FItting Multi-TR Ellipses."""
 
 import numpy as np
-from ssfp import bssfp, gs_recon
+from ssfp import gs_recon
 
 
 def _fimtre6(I0, I1, TR0, TR1):
@@ -47,8 +47,8 @@ def _fimtre8(I0, I1, TR0, TR1):
     return np.angle(ctr0*np.conj(ctr1))
 
 
-def fimtre(I0: np.array, I1: np.array, TR0: float, TR1: float, pc_axis: int=-1, rad: bool=False):
-    '''Off-resonance using multiple TR ellipses.
+def fimtre(I0: np.ndarray, I1: np.ndarray, TR0: float, TR1: float, pc_axis: int=-1, rad: bool=False):
+    """Off-resonance using multiple TR ellipses.
     Parameters
     ----------
     I0 : array_like
@@ -60,9 +60,6 @@ def fimtre(I0: np.array, I1: np.array, TR0: float, TR1: float, pc_axis: int=-1, 
         degrees and TR1.
     TR0, TR1 : float
         TR values in seconds corresponding to I0 and I1.
-    mask : array_like, optional
-        Boolean mask indicating which pixels to estimate
-        off-resonance for.
     pc_axis : int, optional
         Axis holding phase-cycle data.
     rad : bool, optional
@@ -77,7 +74,7 @@ def fimtre(I0: np.array, I1: np.array, TR0: float, TR1: float, pc_axis: int=-1, 
     Notes
     -----
     Uses 6 or 8 phase-cycled images to estimate off-resonance.
-    '''
+    """
     assert np.all(TR0 < TR1)
     I0 = np.moveaxis(np.atleast_2d(I0), pc_axis, -1)
     I1 = np.moveaxis(np.atleast_2d(I1), pc_axis, -1)

@@ -1,0 +1,24 @@
+[project]
+name = "ssfp"
+version = "1.2.0"
+description = "SSFP simulation"
+readme = "README.rst"
+requires-python = ">=3.8"
+license = {file = "LICENSE.txt"}
+authors = [
+    {name = "Nicholas McKibben", email = "nicholas.bgp@gmail.com"}
+]
+maintainers = [
+    {name = "Nicholas McKibben", email = "nicholas.bgp@gmail.com"}
+]
+dependencies = [
+    "numpy>=1.26.1",
+    "matplotlib>=3.8.0",
+    "scikit-image>=0.22.0",
+    "phantominator>=0.7.0",
+    "tqdm>=4.66.0",
+    "ellipsinator>=0.2.1",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/mckib2/ssfp"
