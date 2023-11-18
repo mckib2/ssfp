@@ -49,6 +49,7 @@ def _fimtre8(I0, I1, TR0, TR1):
 
 def fimtre(I0: np.ndarray, I1: np.ndarray, TR0: float, TR1: float, pc_axis: int=-1, rad: bool=False):
     """Off-resonance using multiple TR ellipses.
+
     Parameters
     ----------
     I0 : array_like

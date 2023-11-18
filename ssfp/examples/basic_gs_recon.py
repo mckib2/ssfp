@@ -18,8 +18,7 @@ if __name__ == '__main__':
     df, _ = np.meshgrid(
         np.linspace(-1/TR, 1/TR, N),
         np.linspace(-1/TR, 1/TR, N))
-    sig = bssfp(T1, T2, TR, alpha, field_map=df,
-                phase_cyc=pcs[None, None, :], M0=M0)
+    sig = bssfp(T1, T2, TR, alpha, field_map=df, phase_cyc=pcs, M0=M0)
 
     # Show the phase-cycled images
     nx, ny = 2, 2
@@ -27,7 +26,7 @@ if __name__ == '__main__':
     for ii in range(nx*ny):
         plt.subplot(nx, ny, ii+1)
         plt.imshow(np.abs(sig[..., ii]))
-        plt.title('%d deg PC' % (ii*90))
+        plt.title(f'{ii*90} deg PC')
         plt.tick_params(axis='both', labelsize=0, length=0)
     plt.show(block=False)
 

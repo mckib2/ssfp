@@ -7,7 +7,7 @@ from skimage.util.shape import view_as_windows
 
 
 def gs_recon(Is: np.ndarray, pc_axis: int=0, isophase: float=np.pi, second_pass: bool=True,
-             patch_size: Tuple[int]=None):
+             patch_size: Tuple[int, ...]=None):
     """Full 2D Geometric Solution following Xiang, Hoff's 2014 paper.
 
     Parameters
@@ -106,7 +106,7 @@ def _get_complex_cross_point(Is):
 
     Notes
     -----
-    We assume that Is has the phase-cycle dimenension along the first
+    We assume that Is has the phase-cycle dimension along the first
     axis.
 
     (xi, yi) are the real and imaginary parts of complex valued
@@ -124,11 +124,11 @@ def _get_complex_cross_point(Is):
     den = (x1 - x3)*(y2 - y4) + (x2 - x4)*(y3 - y1)
     if (den == 0).any():
         # Make sure we're not dividing by zero
-        den += np.finfo(float).eps
+        den += 10*np.finfo(float).eps
 
-    M = ((x1*y3 - x3*y1)*(Is[1, ...] - Is[3, ...]) - (
-        x2*y4 - x4*y2)*(Is[0, ...] - Is[2, ...]))/den
-    return M
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        M = ((x1*y3 - x3*y1)*(Is[1, ...] - Is[3, ...]) - (x2*y4 - x4*y2)*(Is[0, ...] - Is[2, ...]))/den
+    return np.nan_to_num(M)
 
 
 def _compute_Iw(I0, I1, Id, patch_size=None, mode='constant', isophase=np.pi,
@@ -194,7 +194,7 @@ def _compute_Iw(I0, I1, Id, patch_size=None, mode='constant', isophase=np.pi,
     numerator = np.atleast_2d(numerator)
     den = np.atleast_2d(den)
 
-    # Pad the image so we can generate patches where we need them
+    # Pad the image, so we can generate patches where we need them
     edge_pad = [int(p/2) for p in patch_size]
     numerator = np.pad(numerator, pad_width=edge_pad, mode=mode)
     den = np.pad(den, pad_width=edge_pad, mode=mode)
@@ -213,7 +213,8 @@ def _compute_Iw(I0, I1, Id, patch_size=None, mode='constant', isophase=np.pi,
     den_weights = np.sum(den_patches, axis=(-2, -1))
 
     # Equation [18]
-    weights = numerator_weights/(2*den_weights + np.finfo(float).eps)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        weights = np.nan_to_num(numerator_weights/(2*den_weights + np.finfo(float).eps))
 
     # Find Iw, the weighted sum of image pair (I0,I1), equation [14]
     Iw = I0*weights + I1*(1 - weights)

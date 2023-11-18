@@ -21,8 +21,9 @@ if __name__ == '__main__':
     df, _ = np.meshgrid(
         np.linspace(-1/TR, 1/TR, N),
         np.linspace(-1/TR, 1/TR, N))
-    sig = bssfp(T1, T2, TR, alpha, field_map=df[..., None],
-                phase_cyc=pcs[None, None, None, :], M0=M0)
+    df = np.stack([df]*nslices, axis=-1)
+    assert df.shape == T1.shape == T2.shape == M0.shape
+    sig = bssfp(T1, T2, TR, alpha, field_map=df, phase_cyc=pcs, M0=M0)
 
     # Do T1, T2 mapping for each pixel
     mask = np.abs(M0) > 1e-8
@@ -63,7 +64,7 @@ if __name__ == '__main__':
 
     plt.subplot(nx, ny, 3)
     plt.imshow(T1*mask - T1est, **opts)
-    plt.title('NRMSE: %g' % normalized_root_mse(T1, T1est))
+    plt.title(f'NRMSE: {normalized_root_mse(T1, T1est)}')
     plt.axis('off')
 
     plt.subplot(nx, ny, 4)
@@ -78,11 +79,11 @@ if __name__ == '__main__':
 
     plt.subplot(nx, ny, 6)
     plt.imshow(T2*mask - T2est, **opts)
-    plt.title('NRMSE: %g' % normalized_root_mse(T2, T2est))
+    plt.title(f'NRMSE: {normalized_root_mse(T2, T2est)}')
     plt.axis('off')
 
     plt.subplot(nx, ny, 7)
-    plt.imshow(df*mask, **opts)
+    plt.imshow(df[..., 0]*mask, **opts)
     plt.title('df Truth')
     plt.axis('off')
 
@@ -92,8 +93,8 @@ if __name__ == '__main__':
     plt.axis('off')
 
     plt.subplot(nx, ny, 9)
-    plt.imshow(df*mask - dfest, **opts)
-    plt.title('NRMSE: %g' % normalized_root_mse(df*mask, dfest))
+    plt.imshow(df[..., 0]*mask - dfest, **opts)
+    plt.title(f'NRMSE: {normalized_root_mse(df[..., 0]*mask, dfest)}')
     plt.axis('off')
 
     plt.show()

@@ -63,8 +63,8 @@ def robustcc(data: np.ndarray, method: str='simple', mask: np.ndarray=None, coil
     else:
         raise NotImplementedError()
 
-    return np.moveaxis(
-        mag*np.exp(1j*phase), (-1, -2), (coil_axis, pc_axis))
+    # FIXME: this doesn't do the right thing when, e.g., pc_axis == -1 and coil_axis == -2
+    return np.moveaxis(mag*np.exp(1j*phase), (-1, -2), (coil_axis, pc_axis))
 
 
 def _simple_phase(data):

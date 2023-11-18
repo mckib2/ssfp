@@ -31,19 +31,22 @@ if __name__ == '__main__':
     N, nc, npcs = 256, 8, 4
     pcs = np.linspace(0, 2*np.pi, npcs, endpoint=False)
     M0, T1, T2 = shepp_logan((N, N, 1), MR=True, zlims=(-.25, .25))
-    M0, T1, T2 = np.squeeze(M0), np.squeeze(T1), np.squeeze(T2)
 
     # Linear off resonance
     TR, alpha = 6e-3, np.deg2rad(30)
     df, _ = np.meshgrid(
         np.linspace(-1/TR, 1/TR, N),
         np.linspace(-1/TR, 1/TR, N))
+    df = df[..., None]
 
     # Generate coil images
     csm = _gaussian_csm(N, N, nc)
-    data = np.abs(csm[..., None, :])*bssfp(
-        T1, T2, TR, alpha, field_map=df, phase_cyc=pcs[None, None, :, None],
-        M0=M0, phi_rf=np.angle(csm[..., None, :]))
+    T1 = np.tile(T1, csm.shape[-1])
+    T2 = np.tile(T2, csm.shape[-1])
+    M0 = np.tile(M0, csm.shape[-1])
+    df = np.tile(df, csm.shape[-1])
+    data = np.abs(csm[..., None])*bssfp(T1, T2, TR, alpha, field_map=df, phase_cyc=pcs, M0=M0, phi_rf=np.angle(csm))
+    data = np.moveaxis(data, -2, -1)
 
     # Do coil-by-coil recon
     res_cbc = np.empty((N, N, nc), dtype=np.complex64)
@@ -61,10 +64,9 @@ if __name__ == '__main__':
 
     if include_full_robustcc:
         t0 = time()
-        res_rcc_full = robustcc(data, method='full', mask=M0 > 0)
+        res_rcc_full = robustcc(data, method='full', mask=M0[..., 0] > 0)
         res_rcc_full = np.abs(gs_recon(res_rcc_full, pc_axis=-1))
-        print(
-            'Took %g seconds to do full robustcc recon' % (time()-t0))
+        print('Took %g seconds to do full robustcc recon' % (time()-t0))
 
     # Take a look
     nx, ny = 1, 2

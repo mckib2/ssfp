@@ -9,7 +9,6 @@ from ssfp import bssfp, fimtre, planet
 
 
 if __name__ == '__main__':
-
     fimtre_results = 1
     planet_results = 0
     sigma = 4e-5
@@ -35,27 +34,17 @@ if __name__ == '__main__':
     df *= mask
 
     if fimtre_results:
-        I0_hi = bssfp(T1, T2, TR0, alpha, field_map=df,
-                      phase_cyc=pcs4[None, None, :], M0=M0)
-        I1_6_hi = bssfp(T1, T2, TR1, alpha, field_map=df,
-                        phase_cyc=pcs2[None, None, :], M0=M0)
-        I1_8_hi = bssfp(T1, T2, TR1, alpha, field_map=df,
-                        phase_cyc=pcs4[None, None, :], M0=M0)
-        I0_lo = bssfp(T1, T2, TR0, alpha_lo, field_map=df,
-                      phase_cyc=pcs4[None, None, :], M0=M0)
-        I1_6_lo = bssfp(T1, T2, TR1, alpha_lo, field_map=df,
-                        phase_cyc=pcs2[None, None, :], M0=M0)
-        I1_8_lo = bssfp(T1, T2, TR1, alpha_lo, field_map=df,
-                        phase_cyc=pcs4[None, None, :], M0=M0)
+        I0_hi = bssfp(T1, T2, TR0, alpha, field_map=df, phase_cyc=pcs4, M0=M0)
+        I1_6_hi = bssfp(T1, T2, TR1, alpha, field_map=df, phase_cyc=pcs2, M0=M0)
+        I1_8_hi = bssfp(T1, T2, TR1, alpha, field_map=df, phase_cyc=pcs4, M0=M0)
+        I0_lo = bssfp(T1, T2, TR0, alpha_lo, field_map=df, phase_cyc=pcs4, M0=M0)
+        I1_6_lo = bssfp(T1, T2, TR1, alpha_lo, field_map=df, phase_cyc=pcs2, M0=M0)
+        I1_8_lo = bssfp(T1, T2, TR1, alpha_lo, field_map=df, phase_cyc=pcs4, M0=M0)
     if planet_results:
-        Ip6_hi = bssfp(T1, T2, TR0, alpha, field_map=df,
-                       phase_cyc=pcs6[None, None, :], M0=M0)
-        Ip8_hi = bssfp(T1, T2, TR0, alpha, field_map=df,
-                       phase_cyc=pcs8[None, None, :], M0=M0)
-        Ip6_lo = bssfp(T1, T2, TR0, alpha_lo, field_map=df,
-                       phase_cyc=pcs6[None, None, :], M0=M0)
-        Ip8_lo = bssfp(T1, T2, TR0, alpha_lo, field_map=df,
-                       phase_cyc=pcs8[None, None, :], M0=M0)
+        Ip6_hi = bssfp(T1, T2, TR0, alpha, field_map=df, phase_cyc=pcs6, M0=M0)
+        Ip8_hi = bssfp(T1, T2, TR0, alpha, field_map=df, phase_cyc=pcs8, M0=M0)
+        Ip6_lo = bssfp(T1, T2, TR0, alpha_lo, field_map=df, phase_cyc=pcs6, M0=M0)
+        Ip8_lo = bssfp(T1, T2, TR0, alpha_lo, field_map=df, phase_cyc=pcs8, M0=M0)
 
     # Make it noisy
     np.random.seed(0)

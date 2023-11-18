@@ -34,18 +34,20 @@ if __name__ == '__main__':
     # MR params for bSSFP sim
     pcs = np.linspace(0, 2*np.pi, npcs, endpoint=False)
     M0, T1, T2 = shepp_logan((N, N, 1), MR=True, zlims=(-.25, .25))
-    M0, T1, T2 = np.squeeze(M0), np.squeeze(T1), np.squeeze(T2)
 
     # Linear off resonance -- exaggerate off-resonance effects
     df, _ = np.meshgrid(
         np.linspace(-1/TR, 1/TR, N),
         np.linspace(-1/TR, 1/TR, N))
+    df = df[..., None]
 
     # Simulate the bSSFP acquisition
-    data = np.abs(mps[..., None, :])*bssfp(
-        T1, T2, TR=TR, alpha=alpha, field_map=df,
-        phase_cyc=pcs[None, None, :], M0=M0,
-        phi_rf=np.angle(mps[..., None, :]))
+    T1 = np.tile(T1, mps.shape[-1])
+    T2 = np.tile(T2, mps.shape[-1])
+    M0 = np.tile(M0, mps.shape[-1])
+    df = np.tile(df, mps.shape[-1])
+    data = np.abs(mps[..., None])*bssfp(T1, T2, TR=TR, alpha=alpha, field_map=df, phase_cyc=pcs, M0=M0, phi_rf=np.angle(mps))
+    data = np.moveaxis(data, -2, -1)
 
     # Add noise
     sigma = 1e-7
@@ -59,7 +61,7 @@ if __name__ == '__main__':
     res_rcc_simple = robustcc(data, method='simple', coil_axis=-1, pc_axis=-2)
 
     # PLANET
-    mask = np.abs(M0) > 1e-8
+    mask = np.abs(M0[..., 0]) > 1e-8
     _Meff, T1map, T2map, _df = planet(res_rcc_simple, alpha, TR, T1_guess=1, mask=mask, pc_axis=-1)
 
     # Stop timer
@@ -67,7 +69,7 @@ if __name__ == '__main__':
 
     # Take a look
     plt.subplot(2, 3, 1)
-    plt.imshow(T1)
+    plt.imshow(T1[..., 0])
     plt.title('True T1')
     plt.axis('off')
 
@@ -77,13 +79,13 @@ if __name__ == '__main__':
     plt.axis('off')
 
     plt.subplot(2, 3, 3)
-    plt.imshow(100*(T1map - T1)/(T1 + 1e-10))
+    plt.imshow(100*(T1map - T1[..., 0])/(T1[..., 0] + 1e-10))
     plt.title('Percent diff')
     plt.colorbar()
     plt.axis('off')
 
     plt.subplot(2, 3, 4)
-    plt.imshow(T2)
+    plt.imshow(T2[..., 0])
     plt.title('True T2')
     plt.axis('off')
 
@@ -93,7 +95,7 @@ if __name__ == '__main__':
     plt.axis('off')
 
     plt.subplot(2, 3, 6)
-    plt.imshow(100*(T2map - T2)/(T2 + 1e-10))
+    plt.imshow(100*(T2map - T2[..., 0])/(T2[..., 0] + 1e-10))
     plt.title('Percent diff')
     plt.colorbar()
     plt.axis('off')
